@@ -1,5 +1,5 @@
 #!/bin/zsh
-main="/Users/ne0crank/git"
+main="~/git"
 npm i -g npm
 for h in `ls $main`; do
   if [ -d ${main}/${h} ]; then

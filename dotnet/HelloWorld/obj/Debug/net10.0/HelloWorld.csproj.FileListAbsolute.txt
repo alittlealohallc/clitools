@@ -1,0 +1,14 @@
+/Users/ne0crank/git/c-sharp/HelloWorld/bin/Debug/net10.0/HelloWorld
+/Users/ne0crank/git/c-sharp/HelloWorld/bin/Debug/net10.0/HelloWorld.deps.json
+/Users/ne0crank/git/c-sharp/HelloWorld/bin/Debug/net10.0/HelloWorld.runtimeconfig.json
+/Users/ne0crank/git/c-sharp/HelloWorld/bin/Debug/net10.0/HelloWorld.dll
+/Users/ne0crank/git/c-sharp/HelloWorld/bin/Debug/net10.0/HelloWorld.pdb
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.GeneratedMSBuildEditorConfig.editorconfig
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.AssemblyInfoInputs.cache
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.AssemblyInfo.cs
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.csproj.CoreCompileInputs.cache
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.dll
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/refint/HelloWorld.dll
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.pdb
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/HelloWorld.genruntimeconfig.cache
+/Users/ne0crank/git/c-sharp/HelloWorld/obj/Debug/net10.0/ref/HelloWorld.dll
