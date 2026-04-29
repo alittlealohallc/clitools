@@ -19,6 +19,7 @@ const HOME_DIR = homedir();
 const BIN_DIR = join(HOME_DIR, 'bin');
 const SHELL_RC = join(HOME_DIR, '.zshrc');
 const TARGET_SCRIPT_PATH = __filename;
+const VERSION = '1.0.0';
 
 // Repository Paths (Hardcoded as requested - Edit these if structure changes)
 const REPO_BASE = join(HOME_DIR, 'git', 'www-alittlealoha-pro');
@@ -423,15 +424,36 @@ USAGE:
   prep-doc <command> [options]
 
 COMMANDS:
-  convert    Convert documents between formats (pandoc/libreoffice)
+  convert    Convert documents between formats (using pandoc/libreoffice)
   create     Create new .mdx files with frontmatter scaffolding
   move       Move files to repo structure with optional frontmatter injection
 
-OPTIONS:
-  --setup    Install shell wrapper and configure PATH
-  --help, -h Show this help message
-  --version  Show version information
-  --force, -y Skip all interactive prompts (create dirs, overwrite)
+SUB COMMAND OPTIONS:
+
+convert:
+  -i, --input <paths...>    Input files or folders (supports glob patterns)
+  -o, --output <dir>        Output folder (default: current)
+  -f, --format <fmt>        Output format (md, mdx, txt, pdf, html, docx, rst, epub)
+
+create:
+  -r, --repo <name>         Repository (admin or public)
+  -c, --category <name>     Category name
+  -s, --subcat <name>       Sub-category name (optional)
+  -t, --tags <tags>         Tags (space separated, quoted)
+
+move:
+  -i, --input <paths...>    Input files or folders to move
+  -r, --repo <name>         Repository (admin or public)
+  -c, --category <name>     Category name
+  -s, --sub <name>          Sub-category name (optional)
+  -t, --tags <tags>         Tags (space separated, quoted)
+
+
+GLOBAL OPTIONS:
+  --setup                   Install shell wrapper and configure PATH
+  --help, -h                Show this help message
+  --version                 Show version information
+  --force, -y               Skip all interactive prompts (create dirs, overwrite)
 
 EXAMPLES:
 
@@ -468,7 +490,7 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 }
 
 if (process.argv.includes('--version')) {
-  console.log('prep-doc v1.0.0');
+  console.log(`prep-doc ${VERSION}`);
   process.exit(0);
 }
 
@@ -486,7 +508,7 @@ if (!command || !validCommands.includes(command)) {
 program
   .name(SCRIPT_NAME)
   .description('Document lifecycle management for www-alittlealoha-pro')
-  .version('1.0.0');
+  .version(VERSION);
 
 // Convert Command
 program
