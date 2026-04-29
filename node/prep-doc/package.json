@@ -1,17 +1,20 @@
 {
   "name": "import-doc",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Convert ODF/TXT/DOCX → MD/MDX/HTML/PDF with frontmatter & category support. Replaces create-doc.zsh.",
   "type": "module",
   "bin": {
-    "import-doc": "./import-doc.js"
+    "import-doc": "./index.js",
+    "push": "git push --follow-tags",
+    "push:minor": "VERSION_TYPE=minor git push --follow-tags",
+    "push:major": "VERSION_TYPE=major git push --follow-tags"
   },
   "scripts": {
-    "start": "node import-doc.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "commander": "^12.1.0",
-    "glob": "^11.0.0"
+    "glob": "^13.0.6"
   },
   "engines": {
     "node": ">=18.0.0"

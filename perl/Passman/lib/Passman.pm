@@ -64,10 +64,10 @@ use Crypt::CBC;
 use Data::Dump qw( dump );
 use Cwd qw( abs_path );
 use File::Basename qw( dirname basename );
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 our $DEBUG   = 0;
 
-my $passman_file = '/.passman';
+my $passman_file = '../passman';
 my $cryptkey     = 'humptydumptysatonawallagreatfall';
 my $cipher       = Crypt::CBC->new(
 	-cipher => 'Rijndael',
