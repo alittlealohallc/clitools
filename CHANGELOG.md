@@ -1,5 +1,11 @@
 # @alittlealohallc/clitools
 
+## 1.0.1
+
+### Patch Changes
+
+- c42a630: moved python script from root to python folder
+
 ## 1.0.0
 
 ### Major Changes
