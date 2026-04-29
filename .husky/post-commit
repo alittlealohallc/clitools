@@ -1,2 +1,0 @@
-#!/bin/zsh
-./scripts/generate-patch.sh
