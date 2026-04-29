@@ -1,18 +1,19 @@
 {
-  "name": "@alittlealohallc/clitools", 
-  "version": "1.2.0",
+  "name": "@alittlealohallc/clitools",
+  "version": "0.1.0",
   "private": true,
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
+    "eslint": "^10.2.1",
     "husky": "^9.1.7"
   },
   "scripts": {
     "prepare": "husky",
     "test": "echo \"No tests specified\" && exit 0",
+    "lint": "eslint .",
     "changeset": "changeset",
     "version": "changeset version",
     "publish": "changeset publish",
     "patch": "git diff HEAD > $(git rev-parse --short HEAD).patch"
-  },
-  "version": "0.1.0"
+  }
 }
