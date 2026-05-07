@@ -1,5 +1,11 @@
 # @alittlealohallc/clitools
 
+## 1.1.2
+
+### Patch Changes
+
+- 8103d71: converged all shell/bash/zsh/ksh/csh scripts into a single folder called: shell
+
 ## 1.1.1
 
 ### Patch Changes
