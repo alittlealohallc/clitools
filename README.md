@@ -8,13 +8,16 @@ Technical repository of scripts and tools to make my life a little better, and m
 
 ```
 .
-├── bash/                 # --- shell tools ---
+├── shell/                # --- shell tools ---
+│   ├── edit.zsh          # wrapper for cotEditor CLI to open one or multiple files
 │   ├── mongod.sh         # starts MongoDB daemon with the config file in `/usr/local/etc/mongod.conf`
 │   └── mpull.sh          # does a `git pull rebase` on all active git repository folders under `~/git`
 ├── dotnet/               # --- .NET tools ---
 │   └── HelloWorld/       # a new test .NET application [^requires]
+├── git/                  # --- git tools ---
+│   └── husky/            # special tool to add versioning to a repo or project
 ├── node/                 # --- Node.js tools ---
-│   ├── convert-doc/      # converts existing docs or creates new templated MD or MDX documents [^requires]
+│   ├── prep-doc/         # converts existing docs or creates new templated MD or MDX documents [^requires]
 │   ├── ginit/            # creates a new GitHub repository if not already created [^requires]
 │   └── ntpcheck/         # validates local machine date/time with the top NTP servers (unfinished) [^requires]
 ├── perl/                 # --- Perl tools --- [^modules]

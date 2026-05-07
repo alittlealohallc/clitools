@@ -1,5 +1,17 @@
 # @alittlealohallc/clitools
 
+## 1.1.1
+
+### Patch Changes
+
+- added hash-users features: corrected import format, output file defaults, overwrite prompt, additional output fixes
+
+## 1.1.0
+
+### Minor Changes
+
+- added hash-users, moved files around, minor updates in other scripts
+
 ## 1.0.1
 
 ### Patch Changes
