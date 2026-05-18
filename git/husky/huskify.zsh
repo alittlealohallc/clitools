@@ -77,13 +77,18 @@ run_setup() {
     log_info "Processing: $target_dir"
     cd "$target_dir"
 
+    # 0. Clean up old changesets setup
+    log_info "Cleaning up old changesets configuration..."
+    rm -rf .changeset 2>/dev/null || true
+    npm uninstall @changesets/cli 2>/dev/null || true
+
     # 1. Install Dependencies
     log_info "Checking dependencies..."
-    if ! grep -q "@changesets/cli" package.json 2>/dev/null; then
-        log_info "Installing husky and changesets..."
-        npm install --save-dev husky @changesets/cli
+    if ! grep -q '"husky"' package.json 2>/dev/null; then
+        log_info "Installing husky..."
+        npm install --save-dev husky
     else
-        log_info "Dependencies already present."
+        log_info "Husky already installed."
     fi
 
     # 2. Initialize Husky (creates .husky if missing)
@@ -95,45 +100,14 @@ run_setup() {
     fi
 
     # 3. Copy Template Files
-    log_info "Injecting template hooks and scripts..."
+    log_info "Injecting template hooks..."
     
     # Overwrite hooks
     cp "$TEMPLATE_DIR/.husky/pre-commit" .husky/pre-commit
     cp "$TEMPLATE_DIR/.husky/post-commit" .husky/post-commit
     cp "$TEMPLATE_DIR/.husky/commit-msg" .husky/commit-msg
     
-    # Ensure scripts directory exists and copy patch script
-    mkdir -p scripts
-    cp "$TEMPLATE_DIR/scripts/generate-patch.sh" scripts/generate-patch.sh
-    chmod +x scripts/generate-patch.sh
-    
-    # Copy changeset config
-    mkdir -p .changeset
-    cp "$TEMPLATE_DIR/.changeset/config.json" .changeset/config.json
-
-    # 4. Merge Scripts into package.json
-    log_info "Merging scripts into package.json..."
-    node -e "
-      const fs = require('fs');
-      const pkgPath = './package.json';
-      const tmplPath = '$TEMPLATE_DIR/package.json';
-      
-      try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-        const tmpl = JSON.parse(fs.readFileSync(tmplPath, 'utf8'));
-        
-        // Deep merge scripts: template overrides existing keys
-        pkg.scripts = { ...pkg.scripts, ...tmpl.scripts };
-        
-        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-        console.log('Scripts merged successfully.');
-      } catch (e) {
-        console.error('Failed to merge scripts:', e.message);
-        process.exit(1);
-      }
-    "
-
-    # 5. Final Permissions
+    # Set execute permissions
     chmod +x .husky/pre-commit
     chmod +x .husky/post-commit
     chmod +x .husky/commit-msg
