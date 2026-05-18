@@ -1,0 +1,17 @@
+#!/bin/zsh
+set -e
+
+COMMIT_MSG=$(cat "$1")
+
+# Extract version type from commit message
+# Supports: [patch], [minor], [major]
+if [[ $COMMIT_MSG =~ \[?(patch|minor|major)\]? ]]; then
+    VERSION_TYPE="${BASH_REMATCH[1]}"
+    echo "[commit-msg] Detected version bump: $VERSION_TYPE"
+    
+    # Store for use in post-commit hook
+    mkdir -p .husky
+    echo "$VERSION_TYPE" > .husky/.version-type
+fi
+
+exit 0
