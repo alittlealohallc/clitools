@@ -7,7 +7,7 @@ Technical repository of scripts and tools to make my life a little better, and m
 ## Project Structure
 
 ```
-.
+./
 ├── shell/                # --- shell tools ---
 │   ├── edit.zsh          # wrapper for cotEditor CLI to open one or multiple files
 │   ├── mongod.sh         # starts MongoDB daemon with the config file in `/usr/local/etc/mongod.conf`
@@ -17,9 +17,10 @@ Technical repository of scripts and tools to make my life a little better, and m
 ├── git/                  # --- git tools ---
 │   └── husky/            # special tool to add versioning to a repo or project
 ├── node/                 # --- Node.js tools ---
-│   ├── prep-doc/         # converts existing docs or creates new templated MD or MDX documents [^requires]
 │   ├── ginit/            # creates a new GitHub repository if not already created [^requires]
+│   ├── prep-doc/         # converts existing docs or creates new templated MD or MDX documents [^requires]
 │   └── ntpcheck/         # validates local machine date/time with the top NTP servers (unfinished) [^requires]
+│   └── readme-gen/       # creates a skeleton README.md after reading repo files and folders
 ├── perl/                 # --- Perl tools --- [^modules]
 │   ├── parser/           
 │   │   ├── dirParser.pl  # Parses folder structure of given path and returns count of files and folders  
