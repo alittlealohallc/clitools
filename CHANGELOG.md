@@ -1,5 +1,12 @@
 # @alittlealohallc/clitools
 
+## 1.2.0
+
+### Minor Changes
+
+- 2eb4031: added readme-gen node script to create a README.md skeleton based on files and folder structure, made husky move .patch files to a hidden folder and added to .gitignore
+- 2eb4031: adding new readme-gen script and updated husky script
+
 ## 1.1.3
 
 ### Patch Changes
