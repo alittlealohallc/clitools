@@ -1,5 +1,11 @@
 # @alittlealohallc/clitools
 
+## 2.0.0
+
+### Major Changes
+
+- 076cccf: added python script (and removed private files), added readme-gen and updated husky
+
 ## 1.2.0
 
 ### Minor Changes

@@ -1,0 +1,40 @@
+#!/bin/zsh
+set -e
+
+# Check if a version bump was requested
+if [[ -f .husky/.version-type ]]; then
+    VERSION_TYPE=$(cat .husky/.version-type)
+    rm .husky/.version-type
+    
+    # Only run version bump on main branch
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    if [[ "$CURRENT_BRANCH" != "main" ]]; then
+        echo "[post-commit] Not on main branch, skipping version bump"
+        exit 0
+    fi
+    
+    echo "[post-commit] Running version bump: $VERSION_TYPE"
+    
+    # Check if this is a monorepo (multiple package.json files)
+    PACKAGE_COUNT=$(find . -maxdepth 3 -name "package.json" -not -path "*/node_modules/*" | wc -l)
+    
+    if [[ $PACKAGE_COUNT -gt 1 ]]; then
+        # Monorepo: use changesets
+        if [[ -d ".changeset" ]]; then
+            npm run version -- --$VERSION_TYPE
+            npm run publish 2>/dev/null || true
+        fi
+    else
+        # Single package: bump version directly
+        npm run version-bump -- --$VERSION_TYPE
+    fi
+    
+    # Create git tag
+    CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "unknown")
+    if [[ "$CURRENT_VERSION" != "unknown" ]]; then
+        git tag -a "v$CURRENT_VERSION" -m "Release v$CURRENT_VERSION" 2>/dev/null || true
+        echo "[post-commit] Created git tag: v$CURRENT_VERSION"
+    fi
+fi
+
+exit 0

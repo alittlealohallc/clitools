@@ -35,13 +35,20 @@ function promptUser(question) {
   });
 }
 
-// Recursive function to build tree structure
+// Recursive function to build tree structure showing ALL files (including hidden)
 function buildTree(dirPath, prefix = '', isLast = true) {
   let result = '';
+  
+  // Read all entries, including hidden ones
   const entries = fs.readdirSync(dirPath, { withFileTypes: true })
     .filter(entry => {
+      // Keep the ignore list for system folders (node_modules, .git, etc.)
       if (IGNORE_DIRS.includes(entry.name)) return false;
-      if (entry.name.startsWith('.') && entry.name !== '.gitignore' && entry.name !== '.editorconfig') return false;
+      
+      // REMOVE THE HIDDEN FILE FILTER HERE
+      // Previously: if (entry.name.startsWith('.') && ...) return false;
+      // Now: We allow all entries except those in IGNORE_DIRS
+      
       return true;
     })
     .sort((a, b) => a.name.localeCompare(b.name));
