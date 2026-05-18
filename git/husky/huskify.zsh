@@ -100,6 +100,7 @@ run_setup() {
     # Overwrite hooks
     cp "$TEMPLATE_DIR/.husky/pre-commit" .husky/pre-commit
     cp "$TEMPLATE_DIR/.husky/post-commit" .husky/post-commit
+    cp "$TEMPLATE_DIR/.husky/commit-msg" .husky/commit-msg
     
     # Ensure scripts directory exists and copy patch script
     mkdir -p scripts
@@ -135,6 +136,7 @@ run_setup() {
     # 5. Final Permissions
     chmod +x .husky/pre-commit
     chmod +x .husky/post-commit
+    chmod +x .husky/commit-msg
     
     log_info "Setup complete for: $target_dir"
     echo ""
