@@ -15,24 +15,22 @@ if [[ -f .husky/.version-type ]]; then
     
     echo "[post-commit] Running version bump: $VERSION_TYPE"
     
-    # Check if this is a monorepo (multiple package.json files)
-    PACKAGE_COUNT=$(find . -maxdepth 3 -name "package.json" -not -path "*/node_modules/*" | wc -l)
+    # Use npm version to bump (works for single + monorepos)
+    npm version "$VERSION_TYPE" --no-git-tag-version || true
     
-    if [[ $PACKAGE_COUNT -gt 1 ]]; then
-        # Monorepo: use changesets
-        if [[ -d ".changeset" ]]; then
-            npm run version -- --$VERSION_TYPE
-            npm run publish 2>/dev/null || true
-        fi
-    else
-        # Single package: bump version directly
-        npm run version-bump -- --$VERSION_TYPE
-    fi
-    
-    # Create git tag
+    # Get the new version
     CURRENT_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "unknown")
+    
     if [[ "$CURRENT_VERSION" != "unknown" ]]; then
+        # Stage the updated package.json
+        git add package.json package-lock.json 2>/dev/null || git add package.json 2>/dev/null || true
+        
+        # Create the tag
         git tag -a "v$CURRENT_VERSION" -m "Release v$CURRENT_VERSION" 2>/dev/null || true
+        
+        # Commit the version bump
+        git commit --amend --no-edit 2>/dev/null || true
+        
         echo "[post-commit] Created git tag: v$CURRENT_VERSION"
     fi
 fi
