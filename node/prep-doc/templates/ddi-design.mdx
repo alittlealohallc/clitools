@@ -1,0 +1,96 @@
+---
+title: ""
+slug: ""
+description: ""
+type: "design"
+status: "draft"
+draft: true
+authors:
+  - name: "Kent Schaeffer"
+    title: "Lead Engineer"
+    org: "A Little Aloha LLC"
+    url: "https://alittlealoha.pro"
+    email: "kent@alittlealoha.pro"
+editors: []
+tags: ["ddi", "dns", "dhcp", "ipam", "architecture", "internal"]
+createdDate: ""
+publishDate: ""
+lastUpdatedDate: ""
+nextReviewDate: ""
+version: "1.0.0"
+mermaid_diagram: ""
+prerequisites: []
+---
+
+> **INTERNAL — Do not distribute externally.**
+
+## Overview
+
+{content}
+
+## Requirements
+
+### Functional Requirements
+
+- [ ] DNS resolution for [ZONES]
+- [ ] DHCP serving for [SCOPES]
+- [ ] IPAM tracking for [NETWORKS]
+
+### Non-Functional Requirements
+
+- Availability: [TARGET, e.g. 99.9%]
+- Response time: [e.g. < 5ms for DNS queries]
+- Redundancy: [Primary/Secondary, HA config]
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+    Client["Client Host"] --> Resolver["DNS Resolver\n(BIND / Infoblox)"]
+    Resolver --> Auth["Authoritative DNS\nZones"]
+    Resolver --> DHCP["DHCP Server"]
+    DHCP --> IPAM["IPAM Database"]
+    IPAM --> Auth
+    Auth --> Zones["Zone Files\n(forward/reverse)"]
+```
+
+## Zone Design
+
+| Zone Name | Type | Primary | Secondary | TTL |
+| :--- | :--- | :--- | :--- | :--- |
+| | | | | |
+
+## DHCP Scopes
+
+| Scope | Network | Range | Gateway | DNS |
+| :--- | :--- | :--- | :--- | :--- |
+| | | | | |
+
+## IPAM Strategy
+
+- **Address space:** [CIDR BLOCKS]
+- **Allocation method:** [Static / Dynamic / Reserved]
+- **Naming convention:** [HOSTNAME PATTERN]
+
+## Implementation Notes
+
+<!-- Vendor-specific config notes (Infoblox, QIP, BIND, Kea, etc.) -->
+
+## Verification Tests
+
+```bash
+# DNS resolution test
+dig @[RESOLVER_IP] [HOSTNAME] A
+
+# Reverse lookup
+dig @[RESOLVER_IP] -x [IP_ADDRESS]
+
+# DHCP lease check
+# [TOOL-SPECIFIC COMMAND]
+```
+
+## Change History
+
+| Date | Version | Description | Author |
+| :--- | :--- | :--- | :--- |
+| | 1.0.0 | Initial draft | Kent Schaeffer |

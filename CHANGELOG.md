@@ -1,5 +1,11 @@
 # @alittlealohallc/clitools
 
+## 1.1.3
+
+### Patch Changes
+
+- a996b07: updated hash-users/index.js to be more flexible on file imports, added sample import files
+
 ## 1.1.2
 
 ### Patch Changes
