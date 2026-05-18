@@ -82,7 +82,7 @@ run_setup() {
     rm -rf .changeset 2>/dev/null || true
     npm uninstall @changesets/cli 2>/dev/null || true
 
-    # 1. Install Dependencies
+    # 1. Install Husky
     log_info "Checking dependencies..."
     if ! grep -q '"husky"' package.json 2>/dev/null; then
         log_info "Installing husky..."
@@ -99,10 +99,8 @@ run_setup() {
         log_info "Husky directory already exists."
     fi
 
-    # 3. Copy Template Files
+    # 3. Copy Template Hooks
     log_info "Injecting template hooks..."
-    
-    # Overwrite hooks
     cp "$TEMPLATE_DIR/.husky/pre-commit" .husky/pre-commit
     cp "$TEMPLATE_DIR/.husky/post-commit" .husky/post-commit
     cp "$TEMPLATE_DIR/.husky/commit-msg" .husky/commit-msg
