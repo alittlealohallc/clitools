@@ -1,11 +1,13 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
-  "changelog": "@changesets/cli/changelog",
-  "commit": false,
-  "fixed": [],
-  "linked": [],
-  "access": "restricted",
-  "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": []
+  "scripts": {
+    "changeset": "changeset",
+    "version": "changeset version",
+    "publish": "changeset publish",
+    "version-bump": "npm version --no-git-tag-version",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0",
+    "husky": "^9.1.7"
+  }
 }
