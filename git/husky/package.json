@@ -3,13 +3,9 @@
   "version": "1.3.1",
   "type": "module",
   "scripts": {
-    "prepare": "husky",
-    "version": "npm version"
+    "prepare": "husky"
   },
   "devDependencies": {
     "husky": "^9.1.7"
-  },
-  "dependencies": {
-    "version": "^0.0.1"
   }
 }
