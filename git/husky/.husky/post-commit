@@ -13,18 +13,8 @@ if [[ -f .husky/.version-type ]]; then
 
     echo "[post-commit] Bumping version: $VERSION_TYPE"
 
-    # Bump version in package.json directly — avoids npm lifecycle scripts
-    NEW_VERSION=$(node --input-type=commonjs <<EOF
-const fs = require('fs');
-const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-const [maj, min, pat] = pkg.version.split('.').map(Number);
-if ('$VERSION_TYPE' === 'major')      pkg.version = (maj+1) + '.0.0';
-else if ('$VERSION_TYPE' === 'minor') pkg.version = maj + '.' + (min+1) + '.0';
-else                                  pkg.version = maj + '.' + min + '.' + (pat+1);
-fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
-console.log('v' + pkg.version);
-EOF
-)
+    # Bump version via .cjs script (CommonJS extension bypasses "type":"module")
+    NEW_VERSION=$(node scripts/bump-version.cjs "$VERSION_TYPE")
 
     # Stage package.json (and lock file if present)
     git add package.json
