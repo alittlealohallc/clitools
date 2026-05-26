@@ -1,0 +1,48 @@
+\documentclass[11pt]{article}
+
+% --- PACKAGES ---
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{titlesec}
+
+% --- CRITICAL: Load geometry WITH OPTIONS directly here ---
+% This overrides any defaults Pandoc might inject later
+\usepackage[
+  margin=0.7in,
+  textwidth=6.5in,
+  textheight=9in,
+  papersize=letter
+]{geometry}
+
+% --- CRITICAL: Define \tightlist for Pandoc compatibility ---
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% --- FONT: Charter ---
+\setmainfont{Charter}[
+  Path=/System/Library/Fonts/Supplemental/,
+  Extension=.ttc,
+  Ligatures=TeX
+]
+\setsansfont{Charter}
+\setmonofont{Courier New}
+
+% --- SPACING ---
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+
+% --- SECTION STYLING ---
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+
+\begin{document}
+
+$if(title)$
+\maketitle
+$endif$
+
+$body$
+
+\end{document}

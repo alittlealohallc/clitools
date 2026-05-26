@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "XKR5YLh3g3A=",
+  "dgSpecHash": "9I9sR0hx3H4=",
   "success": true,
-  "projectFilePath": "/Users/ne0crank/git/c-sharp/HelloWorld/HelloWorld.csproj",
+  "projectFilePath": "/Users/ne0crank/git/clitools/dotnet/HelloWorld/HelloWorld.csproj",
   "expectedPackageFiles": [],
   "logs": []
 }

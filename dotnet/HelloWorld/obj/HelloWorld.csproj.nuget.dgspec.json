@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/Users/ne0crank/git/c-sharp/HelloWorld/HelloWorld.csproj": {}
+    "/Users/ne0crank/git/clitools/dotnet/HelloWorld/HelloWorld.csproj": {}
   },
   "projects": {
-    "/Users/ne0crank/git/c-sharp/HelloWorld/HelloWorld.csproj": {
+    "/Users/ne0crank/git/clitools/dotnet/HelloWorld/HelloWorld.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/ne0crank/git/c-sharp/HelloWorld/HelloWorld.csproj",
+        "projectUniqueName": "/Users/ne0crank/git/clitools/dotnet/HelloWorld/HelloWorld.csproj",
         "projectName": "HelloWorld",
-        "projectPath": "/Users/ne0crank/git/c-sharp/HelloWorld/HelloWorld.csproj",
+        "projectPath": "/Users/ne0crank/git/clitools/dotnet/HelloWorld/HelloWorld.csproj",
         "packagesPath": "/Users/ne0crank/.nuget/packages/",
-        "outputPath": "/Users/ne0crank/git/c-sharp/HelloWorld/obj/",
+        "outputPath": "/Users/ne0crank/git/clitools/dotnet/HelloWorld/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/Users/ne0crank/.nuget/NuGet/NuGet.Config"

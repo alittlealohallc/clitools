@@ -1,0 +1,21 @@
+{
+  "name": "md2pdf",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Convert Markdown/HTML to clean PDF with sensible defaults",
+  "bin": {
+    "md2pdf": "./md2pdf.js"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "glob": "^11.0.0",
+    "marked": "^18.0.4",
+    "puppeteer": "^25.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "setup": "./setup.sh"
+  }
+}

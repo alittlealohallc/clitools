@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, writeFileSync, chmodSync, readFileSync, copyFileSync, renameSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, chmodSync, readFileSync, copyFileSync, renameSync, rmSync, statSync } from 'fs';
 import { join, dirname, basename, extname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { homedir } from 'os';
@@ -19,7 +19,7 @@ const HOME_DIR = homedir();
 const BIN_DIR = join(HOME_DIR, 'bin');
 const SHELL_RC = join(HOME_DIR, '.zshrc');
 const TARGET_SCRIPT_PATH = __filename;
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 // Repository Paths (Hardcoded as requested - Edit these if structure changes)
 const REPO_BASE = join(HOME_DIR, 'git', 'www-alittlealoha-pro');
@@ -141,20 +141,35 @@ function hasFrontmatter(content) {
 // --- Dependency Check ---
 
 function checkDependencies() {
-  const hasPandoc = commandExists('pandoc');
-  const hasLO = commandExists('soffice');
-
-  if (!hasPandoc && !hasLO) {
-    console.error(`[ERROR] Critical Error: Neither pandoc nor LibreOffice (soffice) found in PATH.`);
-    console.error(`   Please install one of the following to proceed:`);
-    console.error(`   - Pandoc: brew install pandoc (macOS) or apt-get install pandoc`);
-    console.error(`   - LibreOffice: brew install --cask libreoffice (macOS) or apt-get install libreoffice`);
+  const missing = [];
+  if (!commandExists('pandoc')) missing.push('pandoc');
+  if (!commandExists('pdflatex')) missing.push('pdflatex (from basictex)');
+  
+  if (missing.length > 0) {
+    console.error('\n[ERROR] Missing dependencies:');
+    missing.forEach(dep => console.error(`   - ${dep}`));
+    console.error('\nRun: ./setup.sh');
     process.exit(1);
   }
-  
-  if (!hasPandoc) console.log('[INFO] Using LibreOffice as primary converter (Pandoc missing).');
-  if (!hasLO) console.log('[INFO] Using Pandoc as primary converter (LibreOffice missing).');
 }
+
+// function checkDependencies() {
+//   const hasPandoc = commandExists('pandoc');
+//   const hasLO = commandExists('soffice');
+// 
+//   if (!hasPandoc && !hasLO) {
+//     console.error(`[ERROR] Critical Error: Neither pandoc nor LibreOffice (soffice) found in PATH.`);
+//     console.error(`   Please install one of the following to proceed:`);
+//     console.error(`   - Pandoc: brew install pandoc (macOS) or apt-get install pandoc`);
+//     console.error(`   - LibreOffice: brew install --cask libreoffice (macOS) or apt-get install libreoffice`);
+//     process.exit(1);
+//   }
+//   
+//   if (!hasPandoc) console.log('[INFO] Using LibreOffice as primary converter (Pandoc missing).');
+//   if (!hasLO) console.log('[INFO] Using Pandoc as primary converter (LibreOffice missing).');
+// }
+
+
 
 // --- File Collection ---
 
@@ -189,11 +204,17 @@ async function collectFiles(inputs, inputFormat) {
  * Converts a single file using pandoc or libreoffice
  */
 async function convertFile(inputFile, opts) {
-  const { outputFormat, outputDir, injectMdx, force } = opts;
+  const { outputFormat, outputDir, outputFileName, injectMdx, force } = opts;
   const baseName = basename(inputFile, extname(inputFile));
   const slug = slugify(baseName);
-  const outExt = outputFormat === 'mdx' ? '.mdx' : `.${outputFormat}`;
-  const outputFile = join(outputDir, `${slug}${outExt}`);
+  const outExt = outputFormat === 'mdx' ? '.mdx' : 'htm' ? 'html' : `.${outputFormat}`;
+  
+  // FIX: Use provided filename if available, otherwise generate slug
+  const finalFileName = outputFileName 
+    ? outputFileName 
+    : `${slug}${outExt}`;
+    
+  const outputFile = join(outputDir, finalFileName);
 
   // Check existence
   if (existsSync(outputFile) && !force) {
@@ -210,28 +231,51 @@ async function convertFile(inputFile, opts) {
   let converted = false;
 
   try {
+
     if (hasPandoc && PANDOC_OUT_MAP[outputFormat]) {
-      const fromMap = {
-        '.odt': 'odt', '.odf': 'odt', '.docx': 'docx', '.rtf': 'rtf',
-        '.html': 'html', '.htm': 'html', '.rst': 'rst', '.md': 'commonmark', '.mdx': 'commonmark', '.txt': 'plain'
-      };
-      const ext = extname(inputFile).toLowerCase();
-      const fromFlag = fromMap[ext] ? `-f ${fromMap[ext]}` : '';
-      const pdfEngine = outputFormat === 'pdf' ? '--pdf-engine=xelatex' : '';
-      
-      const cmd = `pandoc ${fromFlag} "${inputFile}" -t ${PANDOC_OUT_MAP[outputFormat]} ${pdfEngine} -o "${outputFile}"`;
-      execSync(cmd, { stdio: 'pipe' });
-      converted = true;
-    } else if (hasLO && LO_OUT_FORMATS.has(outputFormat)) {
-      execSync(`soffice --headless --convert-to ${outputFormat} --outdir "${outputDir}" "${inputFile}"`, { stdio: 'pipe' });
-      // LO renames to original basename, so we rename to slug
-      const loFile = join(outputDir, `${baseName}.${outputFormat}`);
-      if (existsSync(loFile)) {
-        renameSync(loFile, outputFile);
-      }
-      converted = true;
-    } else {
-      throw new Error('No suitable converter available for this format.');
+        const fromMap = {
+            '.odt': 'odt', '.odf': 'odt', '.docx': 'docx', '.rtf': 'rtf',
+            '.html': 'html', '.htm': 'html', '.rst': 'rst', '.md': 'commonmark', '.mdx': 'commonmark', '.txt': 'plain'
+        };
+        const ext = extname(inputFile).toLowerCase();
+        const fromFlag = fromMap[ext] ? `-f ${fromMap[ext]}` : '';
+  
+        let pdfEngineFlag = '';
+        let extraArgs = '';
+
+        if (outputFormat === 'pdf') {
+            pdfEngineFlag = '--pdf-engine=pdflatex';
+            const templateDir = join(__dirname, 'templates');
+            const templatePath = join(templateDir, 'letter-template.tex');
+            
+            if (existsSync(templatePath)) {
+                console.log(`[INFO] Using custom template with forced margins: ${templatePath}.`);
+            } else {
+                console.warn(`[WARN] Custom template not found. Expected path: ${templatePath}`);
+            }
+        }
+
+        const convertCmd = [
+            'pandoc',
+            `"${fromFlag}"`,
+            `"${inputFile}"`,
+            `-t ${PANDOC_OUT_MAP[outputFormat]}`,
+            `"${pdfEngineFlag}"`,
+            `--template="${templatePath}"`,
+            `-o "${outputFile}"`
+        ].join(' ');
+        
+        // `pandoc ${fromFlag} "${inputFile}" -t ${PANDOC_OUT_MAP[outputFormat]} ${pdfEngineFlag} ${extraArgs} -o "${outputFile}"`;
+
+        console.log(`[INFO] Converting: ${basename(inputFile)}...`);
+        execSync(convertCmd, { stdio: 'pipe' });
+        console.log(`[OK] Created: ${basename(outputFile)}`);
+        converted = true;
+ 
+    } catch (err) {
+        console.error(`[ERROR] Conversion failed [${basename(inputFile)}]:`);
+        console.error(`   ${err.message}`);
+        return false;
     }
 
     if (!existsSync(outputFile)) throw new Error('Output file was not created.');
@@ -450,10 +494,10 @@ move:
 
 
 GLOBAL OPTIONS:
-  --setup                   Install shell wrapper and configure PATH
-  --help, -h                Show this help message
-  --version                 Show version information
-  --force, -y               Skip all interactive prompts (create dirs, overwrite)
+  -e, --setup               Install shell wrapper and configure PATH
+  -h, --help                Show this help message
+  -v, --version             Show version information
+  -y, --force               Skip all interactive prompts (create dirs, overwrite)
 
 EXAMPLES:
 
@@ -479,17 +523,17 @@ REPOSITORIES:
 
 // --- Main Execution ---
 
-if (process.argv.includes('--setup')) {
+if (process.argv.includes('-e, --setup')) {
   setupWrapper();
   process.exit(0);
 }
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
+if (process.argv.includes('-h, --help') || process.argv.includes('-h')) {
   showUsage();
   process.exit(0);
 }
 
-if (process.argv.includes('--version')) {
+if (process.argv.includes('-v, --version')) {
   console.log(`prep-doc ${VERSION}`);
   process.exit(0);
 }
@@ -515,7 +559,7 @@ program
   .command('convert')
   .description('Convert documents between formats')
   .requiredOption('-i, --input <paths...>', 'Input files or folders')
-  .option('-o, --output <dir>', 'Output directory', './')
+  .option('-o, --output <path>', 'Output directory or file path', './') // Changed description
   .option('-f, --format <fmt>', 'Output format', 'mdx')
   .option('--no-mdx', 'Skip frontmatter injection')
   .option('--force, -y', 'Skip prompts')
@@ -526,7 +570,24 @@ program
       process.exit(1);
     }
     
-    const outDir = resolve(opts.output);
+    // FIX: Determine if output is a file or directory
+    const outputPath = resolve(opts.output);
+    const isDirectory = existsSync(outputPath) && statSync(outputPath).isDirectory();
+    
+    let outDir;
+    let outputFileName;
+
+    if (isDirectory) {
+      // If it's an existing directory, use it as-is
+      outDir = outputPath;
+      outputFileName = null; // Let convertFile generate the name
+    } else {
+      // If it's a file path (or non-existent path), treat it as a file
+      outDir = dirname(outputPath);
+      outputFileName = basename(outputPath);
+    }
+
+    // Ensure the target directory exists
     if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
     let ok = 0, fail = 0;
@@ -534,6 +595,7 @@ program
       const success = await convertFile(file, {
         outputFormat: opts.format,
         outputDir: outDir,
+        outputFileName: outputFileName, // Pass the specific filename if provided
         injectMdx: opts.mdx !== false,
         force: opts.force
       });
