@@ -78,6 +78,30 @@ cleanup_legacy() {
         log_ok "Created .gitignore with patch and husky entries."
     fi
 
+    # Remove stale scripts from package.json
+    log_info "Pruning stale scripts from package.json..."
+    node --input-type=commonjs <<'EOF'
+const fs = require('fs');
+const pkgPath = './package.json';
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+const stale = ['changeset', 'version', 'publish', 'patch'];
+const removed = [];
+if (pkg.scripts) {
+    for (const key of stale) {
+        if (key in pkg.scripts) {
+            delete pkg.scripts[key];
+            removed.push(key);
+        }
+    }
+}
+if (removed.length > 0) {
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+    process.stdout.write('Removed scripts: ' + removed.join(', ') + '\n');
+} else {
+    process.stdout.write('No stale scripts found.\n');
+}
+EOF
+
     # Remove @changesets/cli if present in package.json devDependencies
     if grep -q '@changesets/cli' package.json 2>/dev/null; then
         log_info "Uninstalling @changesets/cli..."
