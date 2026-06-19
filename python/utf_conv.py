@@ -16,7 +16,7 @@ VERSION = "1.1.1"
 # Symbol replacement mappings for strict ASCII output
 SYMBOL_REPLACEMENTS = {
     # Checkmarks / X marks
-    '✅': '[OK]', '☑️': '[OK]', '☐': '[ ]', '☒': '[X]', '✓': '[OK]', '✔': '[OK]',
+    '✅': '[OK]', '☑️': '[OK]', '☐': '[ ]', '☑': '[X]', '☒': '[X]', '✓': '[OK]', '✔': '[OK]',
     '✗': '[X]', '✘': '[X]', '❌': '[X]', '❎': '[X]',
     # Arrows
     '→': '->', '←': '<-', '↑': '^', '↓': 'v', '⇒': '=>', '⇐': '<=',
