@@ -64,18 +64,38 @@ cleanup_legacy() {
     fi
 
     # Ensure .patches/ dir is gitignored
-    if [[ -f ".gitignore" ]]; then
-        if ! grep -qx '.patches/' .gitignore 2>/dev/null; then
-            echo '.patches/' >> .gitignore
-            log_ok "Added .patches/ to .gitignore"
+    if [[ -f .gitignore ]]; then
+        HAS_H1=0; HAS_H2=0; HAS_H3=0
+        grep -qx '# husky' .gitignore && HAS_H1=1
+        grep -qx '.patches/' .gitignore && HAS_H2=1
+        grep -qx '.husky/.version-type' .gitignore && HAS_H3=1
+
+        # Check whether the three lines appear consecutively as one block anywhere in the file
+        BLOCK_GROUPED=0
+        if command -v perl >/dev/null 2>&1; then
+            perl -0777 -ne 'print "1" if /# husky\s*\n\.patches\/\s*\n\.husky\/\.version-type\s*\n/ && exit 0' .gitignore | grep -qx '1' \
+                && BLOCK_GROUPED=1
+        else
+            # Fallback: if perl isn't available, we’ll treat "grouped" as not grouped (will normalize).
+            BLOCK_GROUPED=0
         fi
-        if ! grep -qx '.husky/.version-type' .gitignore 2>/dev/null; then
-            echo '.husky/.version-type' >> .gitignore
-            log_ok "Added .husky/.version-type to .gitignore"
+
+        if [[ $HAS_H1 -eq 1 && $HAS_H2 -eq 1 && $HAS_H3 -eq 1 && $BLOCK_GROUPED -eq 1 ]]; then
+            : # move on; keep as-is
+        else
+            # Remove all instances of what we find (2–4), then replace with a single grouped block
+            sed -i'.bak' \
+                -e '/^[[:space:]]*# husky[[:space:]]*$/d' \
+                -e '/^[[:space:]]*\.patches\/[[:space:]]*$/d' \
+                -e '/^[[:space:]]*\.husky\/\.version-type[[:space:]]*$/d' \
+                .gitignore
+            rm -f .gitignore.bak
+
+            printf '\n# husky\n.patches/\n.husky/.version-type\n' >> .gitignore
         fi
     else
-        printf '.patches/\n.husky/.version-type\n' > .gitignore
-        log_ok "Created .gitignore with patch and husky entries."
+        # Create .gitignore with the block
+        printf '# husky\n.patches/\n.husky/.version-type\n' > .gitignore
     fi
 
     # Remove stale scripts from package.json
