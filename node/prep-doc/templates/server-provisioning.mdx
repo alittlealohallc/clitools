@@ -1,0 +1,124 @@
+---
+title: ""
+slug: ""
+description: ""
+type: "how-to"
+status: "draft"
+draft: true
+authors:
+  - name: "Kent Schaeffer"
+    title: "SysAdmin"
+    org: "A Little Aloha LLC"
+    url: "https://alittlealoha.pro"
+    email: "kent@alittlealoha.pro"
+editors: []
+tags: ["linux", "provisioning", "server", "internal"]
+createdDate: ""
+publishDate: ""
+lastUpdatedDate: ""
+nextReviewDate: ""
+version: "1.0.0"
+prerequisites: ["ISO image or PXE boot access", "Network connectivity", "Root or sudo access"]
+---
+
+> **INTERNAL — Server provisioning guide.**
+
+## Purpose
+
+{content}
+
+**Server role:** [e.g. DNS Resolver, Web App, DB Primary]
+**OS:** [e.g. Ubuntu 24.04 LTS]
+**Environment:** [Production / Staging / Dev]
+
+## Pre-Provisioning Checklist
+
+- [ ] Hostname assigned per naming convention: [PATTERN, e.g. `srv-[role]-[site]-[NN]`]
+- [ ] IP address reserved in IPAM
+- [ ] DNS A record and PTR created
+- [ ] Hardware/VM allocated and powered off
+- [ ] ISO or PXE boot configured
+
+## Installation
+
+### Boot & Partition
+
+```bash
+# Boot from [ISO / PXE]
+# Partition layout:
+#   /boot     1 GB
+#   /         20 GB  (or per spec)
+#   /var      [SIZE]
+#   swap      [SIZE or none]
+```
+
+### Base OS Configuration
+
+```bash
+# Set hostname
+hostnamectl set-hostname [HOSTNAME]
+
+# Update packages
+apt update && apt upgrade -y   # Debian/Ubuntu
+# dnf update -y                # RHEL/Rocky
+
+# Set timezone
+timedatectl set-timezone America/Denver
+```
+
+### Network Configuration
+
+```bash
+# Verify IP / interface
+ip addr show
+
+# Set static IP (netplan example for Ubuntu)
+# Edit /etc/netplan/[CONFIG].yaml
+```
+
+## Post-Install Hardening
+
+```bash
+# Disable root SSH login
+sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+
+# Set up key-based auth
+# Add authorized key for kent@alittlealoha.pro
+
+# Enable firewall
+ufw enable
+ufw allow ssh
+```
+
+## Role-Specific Configuration
+
+<!-- Add steps specific to the server role (DNS, web, DB, etc.) -->
+
+## Verification
+
+```bash
+# Ping gateway
+ping -c 4 [GATEWAY]
+
+# DNS resolution
+dig google.com
+
+# SSH login test
+ssh [USER]@[IP]
+```
+
+- [ ] Server responds to ping
+- [ ] DNS resolution works
+- [ ] SSH key auth works (password auth disabled)
+- [ ] IPAM updated with confirmed IP
+- [ ] Monitoring agent installed: [TOOL]
+
+## Handoff
+
+| Item | Value |
+| :--- | :--- |
+| Hostname | |
+| IP Address | |
+| OS Version | |
+| Provisioned By | Kent Schaeffer |
+| Date | |

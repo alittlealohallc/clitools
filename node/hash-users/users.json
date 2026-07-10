@@ -1,0 +1,3 @@
+[
+	{"username": "login_name", "email": "user_email", "password": "long_password","usertype": "admin","rounds": 24}
+]

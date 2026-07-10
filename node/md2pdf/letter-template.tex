@@ -1,0 +1,42 @@
+\documentclass[11pt]{article}
+
+% --- PACKAGES ---
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{titlesec}
+
+% --- GEOMETRY (simpler, no conflict with Pandoc) ---
+\usepackage[margin=0.7in, papersize=letter]{geometry}
+
+% --- FONT: Charter ---
+\setmainfont{Charter}[
+  Ligatures=TeX
+]
+\setsansfont{Charter}
+\setmonofont{Courier New}
+
+% --- SPACING ---
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+
+% --- SECTION STYLING ---
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+
+% --- Pandoc Compatibility ---
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\begin{document}
+
+$if(title)$
+\title{$title$}
+\author{$for(author)$$author$$sep$ \and $endfor$}
+\maketitle
+$endif$
+
+$body$
+
+\end{document}

@@ -1,0 +1,92 @@
+---
+title: ""
+slug: ""
+description: ""
+type: "checklist"
+status: "draft"
+draft: true
+authors:
+  - name: "Kent Schaeffer"
+    title: "Security Auditor"
+    org: "A Little Aloha LLC"
+    url: "https://alittlealoha.pro"
+    email: "kent@alittlealoha.pro"
+editors: []
+tags: ["security", "audit", "compliance", "internal"]
+createdDate: ""
+publishDate: ""
+lastUpdatedDate: ""
+nextReviewDate: ""
+version: "1.0.0"
+---
+
+> **INTERNAL — Security audit checklist. Complete all sections.**
+
+## Audit Info
+
+| | |
+| :--- | :--- |
+| **Audit ID** | [AUD-YYYY-NNN] |
+| **Scope** | [SYSTEMS / ENVIRONMENT] |
+| **Auditor** | Kent Schaeffer |
+| **Date** | [DATE] |
+
+{content}
+
+## Network Security
+
+- [ ] Firewall rules reviewed — unnecessary ports closed
+- [ ] IDS/IPS enabled and signature database current
+- [ ] External port scan completed — no unexpected open ports
+- [ ] VPN access restricted to authorized users
+- [ ] Network segmentation verified (VLANs not bleeding)
+
+## System Security
+
+- [ ] All systems patched to current — no critical CVEs outstanding
+- [ ] User accounts audited — no orphaned or shared accounts
+- [ ] Root/admin login disabled over SSH
+- [ ] SSH key authentication enforced — password auth off
+- [ ] Logging enabled on all systems (auth, sudo, syslog)
+- [ ] Log retention meets [POLICY, e.g. 90 days]
+
+## Application / API Security
+
+- [ ] API keys rotated in last [PERIOD]
+- [ ] All secrets in secrets manager — none in code or env files
+- [ ] Input validation verified — no obvious injection vectors
+- [ ] HTTPS enforced everywhere — no plain HTTP endpoints
+- [ ] CORS policy reviewed
+
+## Cloudflare / Infrastructure
+
+- [ ] Wrangler API tokens scoped to minimum necessary permissions
+- [ ] D1 databases not publicly accessible
+- [ ] Workers secrets reviewed — no stale values
+- [ ] Cloudflare Access policies current
+- [ ] DNS CAA records in place
+
+## Access Control
+
+- [ ] MFA enabled for all admin accounts
+- [ ] Least-privilege principle applied — no over-permissioned roles
+- [ ] Third-party vendor access reviewed
+- [ ] Offboarding process verified — departed users removed
+
+## Backup & Recovery
+
+- [ ] Backup jobs running — last successful backup: [DATE]
+- [ ] Restore tested in last [PERIOD]
+- [ ] DRP document current
+
+## Findings
+
+| # | Severity | Finding | Remediation | Owner | Due |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | | | | | |
+
+## Sign-off
+
+| Role | Name | Date |
+| :--- | :--- | :--- |
+| Auditor | Kent Schaeffer | |

@@ -1,0 +1,88 @@
+---
+title: ""
+slug: ""
+description: ""
+type: "plan"
+status: "draft"
+draft: true
+authors:
+  - name: "Kent Schaeffer"
+    title: "Security Engineer"
+    org: "A Little Aloha LLC"
+    url: "https://alittlealoha.pro"
+    email: "kent@alittlealoha.pro"
+editors: []
+tags: ["backup", "disaster-recovery", "drp", "security", "internal"]
+createdDate: ""
+publishDate: ""
+lastUpdatedDate: ""
+nextReviewDate: ""
+version: "1.0.0"
+---
+
+> **INTERNAL — Disaster Recovery & Backup Plan.**
+
+## Scope
+
+{content}
+
+**Systems covered:** [LIST SYSTEMS]
+**RTO (Recovery Time Objective):** [e.g. 4 hours]
+**RPO (Recovery Point Objective):** [e.g. 24 hours / last backup]
+
+## Backup Strategy
+
+| System | Type | Frequency | Retention | Location | Tool |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| | Full | Weekly | 4 weeks | | |
+| | Incremental | Daily | 7 days | | |
+| | Config export | On change | Last 5 | | |
+
+## Backup Verification
+
+Backups must be verified [FREQUENCY, e.g. monthly]:
+
+```bash
+# Example: test restore to isolated environment
+# [SPECIFIC COMMANDS]
+```
+
+- [ ] Restore tested: [DATE]
+- [ ] Test passed: [YES/NO]
+
+## Recovery Procedures
+
+### Scenario 1 — Single File / Object Recovery
+
+```bash
+# Steps to restore a single file or database record
+```
+
+### Scenario 2 — Full System Recovery
+
+```bash
+# Steps to rebuild or restore an entire system from backup
+```
+
+### Scenario 3 — Cloud / D1 Database Recovery
+
+```bash
+# Cloudflare D1 example
+npx wrangler d1 execute [DB_NAME] --remote --file=./backup/[DUMP].sql
+```
+
+## Contact List
+
+| Role | Name | Contact |
+| :--- | :--- | :--- |
+| Primary | Kent Schaeffer | kent@alittlealoha.pro |
+| Backup | [NAME] | [EMAIL/PHONE] |
+| Cloudflare Support | — | https://dash.cloudflare.com/support |
+
+## Testing Schedule
+
+| Test Type | Frequency | Last Tested | Result |
+| :--- | :--- | :--- | :--- |
+| Backup integrity | Monthly | | |
+| Full restore | Quarterly | | |
+| DR exercise | Annually | | |

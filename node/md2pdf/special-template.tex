@@ -1,0 +1,44 @@
+\documentclass[11pt]{article}
+
+\usepackage{fontspec}
+\usepackage{setspace}
+\usepackage{parskip}
+\usepackage{titlesec}
+
+% --- GEOMETRY ---
+\usepackage[margin=0.7in, papersize=letter]{geometry}
+
+% --- FONT ---
+\setmainfont{Charter}
+\setmonofont{Courier New}
+
+% --- SPACING ---
+\onehalfspacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+
+% --- SECTION STYLING ---
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{1.5ex}{1ex}
+
+% --- CRITICAL PANDOC DEFINITIONS ---
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+$for(header-includes)$
+$header-includes$
+$endfor$
+
+\begin{document}
+
+$if(title)$
+\title{$title$}
+$if(author)$
+\author{$for(author)$$author$$sep$ \and $endfor$}
+$endif$
+\maketitle
+$endif$
+
+$body$
+
+\end{document}
