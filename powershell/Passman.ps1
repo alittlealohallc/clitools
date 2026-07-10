@@ -1,8 +1,8 @@
 
 
 # set encrypted data file locations
-$encryptedPassFile = "/Users/ne0crank/Downloads/encrypted.pass"
-$encryptedKeysFile = "/Users/ne0crank/Downloads/encrypted.key"
+$encryptedPassFile = "~/Downloads/encrypted.pass"
+$encryptedKeysFile = "~/Downloads/encrypted.key"
 
 # create encryption key
 $encryptionKeyBytes = New-Object Byte[] 32

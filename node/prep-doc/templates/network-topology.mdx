@@ -1,0 +1,89 @@
+---
+title: ""
+slug: ""
+description: ""
+type: "reference"
+status: "draft"
+draft: true
+authors:
+  - name: "Kent Schaeffer"
+    title: "Network Architect"
+    org: "A Little Aloha LLC"
+    url: "https://alittlealoha.pro"
+    email: "kent@alittlealoha.pro"
+editors: []
+tags: ["network", "topology", "infrastructure", "reference", "internal"]
+createdDate: ""
+publishDate: ""
+lastUpdatedDate: ""
+nextReviewDate: ""
+version: "1.0.0"
+mermaid_diagram: ""
+---
+
+> **INTERNAL — Do not distribute externally.**
+
+## Site Overview
+
+{content}
+
+**Site:** [SITE NAME / LOCATION]
+**Environment:** [Production / Staging / Lab]
+**Last physical review:** [DATE]
+
+## Physical Topology
+
+```mermaid
+graph LR
+    ISP["ISP / WAN"] --> FW["Firewall"]
+    FW --> Core["Core Switch"]
+    Core --> Access1["Access Switch 1"]
+    Core --> Access2["Access Switch 2"]
+    Core --> SRV["Server VLAN"]
+    Access1 --> End1["End Devices"]
+    Access2 --> End2["End Devices"]
+```
+
+## Logical Topology
+
+```mermaid
+graph TD
+    Inet["Internet"] --> FW["Firewall\n[VENDOR/MODEL]"]
+    FW --> DMZ["DMZ\n[SUBNET]"]
+    FW --> LAN["LAN\n[SUBNET]"]
+    FW --> MGMT["Mgmt VLAN\n[SUBNET]"]
+    LAN --> SRV["Servers\n[SUBNET]"]
+```
+
+## VLAN Configuration
+
+| VLAN ID | Name | Subnet | Gateway | Purpose |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Default | | | Untagged (do not use) |
+| 10 | Management | | | Network device mgmt |
+| 20 | Servers | | | Production servers |
+| 30 | Users | | | End user workstations |
+| 40 | DMZ | | | Public-facing services |
+
+## Device Inventory
+
+| Hostname | Role | Model | IP | Location |
+| :--- | :--- | :--- | :--- | :--- |
+| | | | | |
+
+## Routing
+
+| Protocol | Purpose | Networks Advertised |
+| :--- | :--- | :--- |
+| Static | Default route | 0.0.0.0/0 → [GATEWAY] |
+| | | |
+
+## Firewall Rules Summary
+
+| Rule | Source | Destination | Port/Protocol | Action |
+| :--- | :--- | :--- | :--- | :--- |
+| | | | | |
+
+## Known Issues / Notes
+
+<!-- Outstanding issues, temporary configs, things to fix. -->

@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use Data::Dump qw( dump );
- use Net::DNS::Dig qw(
+use Net::DNS::Dig qw(
     :forceEmu
     ndd_gethostbyaddr
     ndd_gethostbyname
@@ -12,10 +12,10 @@ use Data::Dump qw( dump );
     AF_INET6
 );
 
-my $resultFile = "/Users/ne0crank/git/clitools/perl/businesszones.txt";
+my $resultFile = "~/git/clitools/perl/businesszones.txt";
 unlink $resultFile;
 # my $tlds = ['com'];
-my $tlds = ['com','net','org','me','name','homes','casa','agency','dev','website'];
+my $tlds = ['com','net','org','me','name','homes','casa','agency','dev','website', 'io','app','co','us','biz','info','xyz','online','site','store','tech','space','cloud', 'pro'];
 my $domains = [
     'trxn llc'
 ];

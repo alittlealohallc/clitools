@@ -1,0 +1,26 @@
+{
+  "name": "@alittlealoha/prep-doc",
+  "version": "1.0.0",
+  "description": "Document preparation CLI tools for A Little Aloha LLC",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "doc-convert": "./src/doc-convert.js",
+    "doc-prep":    "./src/doc-prep.js",
+    "doc-create":  "./src/doc-create.js",
+    "doc-update":  "./src/doc-update.js"
+  },
+  "scripts": {
+    "link":   "npm link",
+    "unlink": "npm unlink"
+  },
+  "dependencies": {
+    "commander":  "^12.1.0",
+    "js-yaml":    "^4.1.0",
+    "glob":       "^11.0.0",
+    "picocolors": "^1.1.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

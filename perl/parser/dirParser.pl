@@ -2,31 +2,31 @@
 
 =head1 NAME
 
-dirParse.pl
+drParser.pl
 
 =head1 SYNOPSIS
 
-dirParse.pl - parses folder structure of given path and returns count of files and folders.
+drParser.pl - parses folder structure of given path and returns count of files and folders.
 
 =head1 DESCRIPTION
 
-passman.pl uses the Passman.pm module to manage passwords and keys.
+Parses folder structure of given path and returns count of files and folders.
 
 =head2 EXPORT
 
-count of files and folders to the console
+outputs count of files and folders to the console
 
 =head1 SEE ALSO
 
 =head1 AUTHOR
 
 Kent schaeffer
-ne0crank@icloud.com
+kent@kentknowsme.com
 
 =head1 MAINTENANCE
 
 Kent Schaeffer
-ne0crank@icloud.com
+kent@kentknowsme.com
 
 =head1 COPYRIGHT AND LICENSE
 
