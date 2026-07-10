@@ -1,15 +1,16 @@
 #!/bin/zsh
 set -e
 
-COMMIT_MSG=$(cat "$1")
+COMMIT_MSG=$(<"$1")
 
-# Extract version type from commit message
-# Supports: [patch], [minor], [major]
-if [[ $COMMIT_MSG =~ \[(patch|minor|major)\] ]]; then
-    VERSION_TYPE="${match[1]}"
-    echo "[commit-msg] Detected version bump: $VERSION_TYPE"
-    mkdir -p .husky
-    echo "$VERSION_TYPE" > .husky/.version-type
+VERSION_TYPE="$(
+  print -r -- "$COMMIT_MSG" | sed -nE 's/.*\[(patch|minor|major)\].*/\1/p' | head -n 1
+)"
+
+if [[ -n "$VERSION_TYPE" ]]; then
+  echo "[commit-msg] Detected version bump: $VERSION_TYPE"
+  mkdir -p .husky
+  echo "$VERSION_TYPE" > .husky/.version-type
 fi
 
 exit 0

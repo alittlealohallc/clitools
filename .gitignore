@@ -50,6 +50,7 @@ api-keys.json
 api-keys.json.patches/
 
 
+
 # husky
 .patches/
 .husky/.version-type
