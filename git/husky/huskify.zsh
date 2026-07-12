@@ -60,7 +60,7 @@ is_stop_dir() {
 
 find_pkg_upwards() {
   local cur="$1"
-  local repo_dir
+  local repo_dir parent
   repo_dir="$(basename "$cur")"
 
   while :; do
@@ -71,7 +71,6 @@ find_pkg_upwards() {
 
     is_stop_dir "$cur" "$repo_dir" && return 1
 
-    local parent
     parent="$(cd "$cur/.." && pwd -P)"
     [[ "$parent" == "$cur" ]] && return 1
     cur="$parent"
@@ -212,6 +211,16 @@ run_setup() {
   start_dir="$(dirname "$pkg_json")"
   cd "$start_dir" || exit 1
   log_info "Processing: $start_dir"
+
+  # Guard: install-from (template_dir) and install-to (start_dir) must not be
+  # the same folder, or cleanup would permanently delete the template itself.
+  local template_dir_real
+  template_dir_real="$(cd "$template_dir" && pwd -P)"
+  if [[ "$start_dir" == "$template_dir_real" ]]; then
+    log_warn "Target ($start_dir) is the Husky template itself - skipping (nothing to install)."
+    echo ""
+    return 0
+  fi
 
   # 2. cleanup old installs
   cleanup_legacy_husky_install

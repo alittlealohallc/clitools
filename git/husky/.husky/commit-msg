@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+commit_msg=$(cat "$1")
+
+version_type=$(printf '%s' "$commit_msg" | sed -nE 's/.*\[(patch|minor|major)\].*/\1/p' | head -n 1)
+
+if [ -n "$version_type" ]; then
+  mkdir -p .husky
+  printf '%s' "$version_type" > .husky/.version-type
+
+  # Save the commit message (with the [patch]/[minor]/[major] tag stripped)
+  # for post-commit to use as the CHANGELOG.md entry body.
+  printf '%s\n' "$commit_msg" | sed -E '1s/^\[(patch|minor|major)\][[:space:]]*//' > .husky/.commit-message
+fi
+
+exit 0
