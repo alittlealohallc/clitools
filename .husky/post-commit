@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+# [local-install] is always the repo root (git hooks run with cwd at the top
+# of the working tree, and huskify.zsh only installs there - no nested
+# monorepo installs), so this always targets ./package.json and ./CHANGELOG.md.
+
 update_changelog() {
   version="$1"
   entry_date="$2"
@@ -34,31 +38,22 @@ if [ -f .husky/.version-type ]; then
     exit 0
   fi
 
-  echo "[post-commit] Bumping versions: $version_type"
+  echo "[post-commit] Bumping version ($version_type)"
 
-  # Find package.json files for subpackages (exclude node_modules and nested src/package.json)
-  pkgs=$(find . -type f -name package.json \
-    -not -path './node_modules/*' \
-    -not -path './.git/*' \
-    -not -path './git/*' \
-    -not -path '*/src/package.json' \
-    -not -path './package.json' )
-
-  # Also bump root package.json (remove this if you truly only want subfolders)
-  all_pkgs="./package.json"
-  if [ -n "$pkgs" ]; then
-    all_pkgs="$all_pkgs
-$pkgs"
-  fi
-
-  # Bump each package.json in-place and collect which ones changed
-  changed_pkgs=""
-  for pkg in $all_pkgs; do
-    node .husky/bump-version.cjs "$version_type" "$pkg" >/dev/null
-    changed_pkgs="$changed_pkgs $pkg"
-  done
-
-  new_version=$(node -p "require('./package.json').version" )
+  bump_output=$(node .husky/bump-version.cjs "$version_type" ./package.json 2>/tmp/bump-version.$$) || {
+    status=$?
+    if [ "$status" -eq 3 ]; then
+      echo "[post-commit] Skipping (no valid semver \"version\" field in package.json)"
+      rm -f /tmp/bump-version.$$ .husky/.commit-message
+      exit 0
+    fi
+    echo "[post-commit] Warning: failed to bump package.json (exit $status)" >&2
+    cat /tmp/bump-version.$$ >&2
+    rm -f /tmp/bump-version.$$
+    exit "$status"
+  }
+  rm -f /tmp/bump-version.$$
+  new_version=$(printf '%s' "$bump_output" | sed 's/^v//')
 
   # Update CHANGELOG.md (created if missing) with the release entry
   commit_message_body=""
@@ -67,17 +62,9 @@ $pkgs"
     rm -f .husky/.commit-message
   fi
   update_changelog "$new_version" "$(date +%Y-%m-%d)" "$commit_message_body"
-  git add CHANGELOG.md
 
-  # Stage bumped package.json files
-  git add $changed_pkgs
-
-  # Stage any lockfiles that exist in the same directories as bumped package.json
-  # (root package-lock.json will also be staged if present)
-  for pkg in $changed_pkgs; do
-    dir=$(dirname "$pkg")
-    [ -f "$dir/package-lock.json" ] && git add "$dir/package-lock.json" || true
-  done
+  git add package.json CHANGELOG.md
+  [ -f package-lock.json ] && git add package-lock.json
 
   # If nothing changed, don't create another commit/tag
   if git diff --cached --quiet; then
