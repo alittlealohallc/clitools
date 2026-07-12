@@ -1,223 +1,270 @@
 #!/usr/bin/env zsh
 # huskify.zsh - Automated Husky Setup Script
 
-set -e
+setopt errexit nounset pipefail extended_glob
+IFS=$'\n\t'
 
-# --- Global Path Resolution ---
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SCRIPT_PATH="$SCRIPT_DIR/$(basename "$0")"
+# --- Config ---
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+script_path="$script_dir/$(basename "$0")"
 
-# --- Configuration ---
-SCRIPT_NAME="huskify"
-TEMPLATE_DIR="$HOME/git/clitools/git/husky"
-BIN_DIR="$HOME/bin"
-SYMLINK_PATH="$BIN_DIR/$SCRIPT_NAME"
+template_dir="$HOME/git/clitools/git/husky"
+bin_dir="$HOME/bin"
+symlink_path="$bin_dir/huskify"
 
-# --- Helper Functions ---
+script_name="huskify"
+ignorify_script="$HOME/git/clitools/git/ignorify.zsh"
 
+# --- Logging ---
 log_info()  { print -P "%F{blue}[INFO]%f %B$1%b" }
 log_warn()  { print -P "%F{yellow}[WARN]%f %B$1%b" }
 log_ok()    { print -P "%F{green}[ OK ]%f %B$1%b" }
 log_error() { print -P "%F{red}[ERROR]%f %B$1%b"; exit 1 }
 
+# --- Template checks ---
 check_template() {
-    [[ -d "$TEMPLATE_DIR" ]]           || log_error "Template directory not found: $TEMPLATE_DIR"
-    [[ -f "$TEMPLATE_DIR/.husky/pre-commit" ]] || log_error "Template hook pre-commit not found in $TEMPLATE_DIR"
-    [[ -f "$TEMPLATE_DIR/scripts/bump-version.cjs" ]] || log_error "Template script bump-version.cjs not found in $TEMPLATE_DIR/scripts"
+  [[ -d "$template_dir" ]] || log_error "Template directory not found: $template_dir"
+  [[ -f "$template_dir/.husky/pre-commit"       ]] || log_error "Missing template: pre-commit"
+  [[ -f "$template_dir/.husky/post-commit"      ]] || log_error "Missing template: post-commit"
+  [[ -f "$template_dir/.husky/commit-msg"       ]] || log_error "Missing template: commit-msg"
+  [[ -f "$template_dir/.husky/bump-version.cjs" ]] || log_error "Missing template: bump-version.cjs"
+  [[ -f "$template_dir/.husky/generate-patch.sh" ]] || log_error "Missing template: generate-patch.sh"
 }
 
 setup_symlink() {
-    log_info "Setting up symlink → $SYMLINK_PATH"
-    mkdir -p "$BIN_DIR"
+  local bin_link="$bin_dir/huskify"
+  local target="$template_dir/huskify.zsh"
 
-    if [[ -L "$SYMLINK_PATH" ]]; then
-        rm "$SYMLINK_PATH"
-        log_info "Removed stale symlink."
-    elif [[ -e "$SYMLINK_PATH" ]]; then
-        log_warn "Non-symlink file at $SYMLINK_PATH — removing."
-        rm "$SYMLINK_PATH"
-    fi
+  log_info "Setting up symlink -> $bin_link"
 
-    ln -s "$SCRIPT_PATH" "$SYMLINK_PATH"
-    log_ok "Symlink created: run '$SCRIPT_NAME' from anywhere."
+  mkdir -p "$bin_dir"
+  if [[ -e "$bin_link" && ! -L "$bin_link" ]]; then
+    log_warn "Non-symlink exists at $bin_link - removing."
+    rm -f "$bin_link"
+  elif [[ -L "$bin_link" ]]; then
+    rm -f "$bin_link"
+  fi
 
-    if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-        log_warn "$BIN_DIR not in PATH. Add to ~/.zshrc:"
-        print "  export PATH=\"\$HOME/bin:\$PATH\""
-    fi
+  ln -s "$target" "$bin_link"
+  log_ok "Symlink created: $bin_link -> $target"
 }
 
-cleanup_legacy() {
-    log_info "Cleaning up legacy artifacts..."
+# --- Repo helpers ---
+is_stop_dir() {
+  local d="$1" repo="$2"
+  [[ "$d" == "$HOME/git/$repo" ]] && return 0
+  [[ "$d" == "$HOME/git/github/$repo" ]] && return 0
+  [[ "$d" == "$HOME/git/gitlab/$repo" ]] && return 0
+  return 1
+}
 
-    # Remove changeset directory and config
-    if [[ -d ".changeset" ]]; then
-        rm -rf .changeset
-        log_ok "Removed .changeset/"
+find_pkg_upwards() {
+  local cur="$1"
+  local repo_dir
+  repo_dir="$(basename "$cur")"
+
+  while :; do
+    if [[ -f "$cur/package.json" ]]; then
+      print -r -- "$cur/package.json"
+      return 0
     fi
 
-    # Remove stale .patches files at repo root (old behavior dumped them here)
-    local stale_patches=( ./*.patch(N) )
-    if (( ${#stale_patches} > 0 )); then
-        rm -f ./*.patch
-        log_ok "Removed ${#stale_patches} stale .patch file(s) from repo root."
-    fi
+    is_stop_dir "$cur" "$repo_dir" && return 1
 
-    # Ensure .patches/ dir is gitignored
-    if [[ -f .gitignore ]]; then
-        HAS_H1=0; HAS_H2=0; HAS_H3=0
-        grep -qx '# husky' .gitignore && HAS_H1=1
-        grep -qx '.patches/' .gitignore && HAS_H2=1
-        grep -qx '.husky/.version-type' .gitignore && HAS_H3=1
+    local parent
+    parent="$(cd "$cur/.." && pwd -P)"
+    [[ "$parent" == "$cur" ]] && return 1
+    cur="$parent"
+  done
+}
 
-        # Check whether the three lines appear consecutively as one block anywhere in the file
-        BLOCK_GROUPED=0
-        if command -v perl >/dev/null 2>&1; then
-            perl -0777 -ne 'print "1" if /# husky\s*\n\.patches\/\s*\n\.husky\/\.version-type\s*\n/ && exit 0' .gitignore | grep -qx '1' \
-                && BLOCK_GROUPED=1
-        else
-            # Fallback: if perl isn't available, we’ll treat "grouped" as not grouped (will normalize).
-            BLOCK_GROUPED=0
-        fi
+# --- Cleanup (repo setup / re-setup, workflow step 2) ---
+cleanup_legacy_husky_install() {
+  log_info "Removing previous Husky install..."
 
-        if [[ $HAS_H1 -eq 1 && $HAS_H2 -eq 1 && $HAS_H3 -eq 1 && $BLOCK_GROUPED -eq 1 ]]; then
-            : # move on; keep as-is
-        else
-            # Remove all instances of what we find (2–4), then replace with a single grouped block
-            sed -i'.bak' \
-                -e '/^[[:space:]]*# husky[[:space:]]*$/d' \
-                -e '/^[[:space:]]*\.patches\/[[:space:]]*$/d' \
-                -e '/^[[:space:]]*\.husky\/\.version-type[[:space:]]*$/d' \
-                .gitignore
-            rm -f .gitignore.bak
+  # 1. remove [local_install]/.husky recursively
+  if [[ -d ".husky" ]]; then
+    rm -rf ".husky"
+    log_ok "Removed .husky/"
+  fi
 
-            printf '\n# husky\n.patches/\n.husky/.version-type\n' >> .gitignore
-        fi
-    else
-        # Create .gitignore with the block
-        printf '# husky\n.patches/\n.husky/.version-type\n' > .gitignore
-    fi
+  # 2. remove [local_install]/scripts/bump-version.cjs, generate-patch.sh (pre-consolidation layout)
+  local removed_script=0
+  if [[ -f "scripts/bump-version.cjs" ]]; then
+    rm -f "scripts/bump-version.cjs"
+    removed_script=1
+  fi
+  if [[ -f "scripts/generate-patch.sh" ]]; then
+    rm -f "scripts/generate-patch.sh"
+    removed_script=1
+  fi
+  (( removed_script )) && log_ok "Removed legacy scripts/{bump-version.cjs,generate-patch.sh}"
 
-    # Remove stale scripts from package.json
-    log_info "Pruning stale scripts from package.json..."
-    node --input-type=commonjs <<'EOF'
+  # 3. remove [local_install]/scripts folder if no other files/folders remain
+  if [[ -d "scripts" ]] && [[ -z "$(ls -A scripts)" ]]; then
+    rmdir "scripts"
+    log_ok "Removed empty scripts/ folder"
+  fi
+}
+
+cleanup_legacy_tooling() {
+  log_info "Cleaning legacy artifacts..."
+
+  [[ -d ".changeset" ]] && { rm -rf .changeset; log_ok "Removed .changeset/"; }
+
+  # Old behavior: remove stale root .patch files (keep directory itself)
+  local -a stale
+  stale=( ./*.patch(N) )
+  if (( ${#stale} > 0 )); then
+    rm -f ./*.patch
+    log_ok "Removed ${#stale} stale .patch file(s) from repo root."
+  fi
+
+  # Remove stale scripts at root package.json
+  node --input-type=commonjs <<'EOF'
 const fs = require('fs');
-const pkgPath = './package.json';
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-const stale = ['changeset', 'version', 'publish', 'patch'];
-const removed = [];
-if (pkg.scripts) {
-    for (const key of stale) {
-        if (key in pkg.scripts) {
-            delete pkg.scripts[key];
-            removed.push(key);
-        }
-    }
+const pkg = JSON.parse(fs.readFileSync('./package.json','utf8'));
+const stale = ['changeset','version','publish','patch'];
+let changed = false;
+for (const k of stale) {
+  if (pkg.scripts && Object.prototype.hasOwnProperty.call(pkg.scripts, k)) {
+    delete pkg.scripts[k];
+    changed = true;
+  }
 }
-if (removed.length > 0) {
-    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-    process.stdout.write('Removed scripts: ' + removed.join(', ') + '\n');
-} else {
-    process.stdout.write('No stale scripts found.\n');
-}
+if (changed) fs.writeFileSync('./package.json', JSON.stringify(pkg,null,2)+'\n');
 EOF
 
-    # Remove @changesets/cli if present in package.json devDependencies
-    if grep -q '@changesets/cli' package.json 2>/dev/null; then
-        log_info "Uninstalling @changesets/cli..."
-        npm uninstall @changesets/cli 2>/dev/null || log_warn "npm uninstall failed — remove @changesets/cli from package.json manually."
-        log_ok "Removed @changesets/cli."
-    fi
+  if grep -q '"@changesets/cli"' package.json 2>/dev/null; then
+    log_info "Uninstalling @changesets/cli..."
+    npm uninstall @changesets/cli >/dev/null 2>&1 || log_warn "Could not uninstall @changesets/cli (remove manually if needed)."
+  fi
+}
+
+install_husky_if_needed() {
+  if ! node --input-type=commonjs <<'EOF' >/dev/null 2>&1; then
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync('./package.json','utf8'));
+process.exit(pkg.devDependencies && pkg.devDependencies.husky ? 0 : 1);
+EOF
+    log_info "Installing husky..."
+    npm install --save-dev husky
+  else
+    log_ok "Husky dependency present."
+  fi
+}
+
+init_husky() {
+  log_info "Initializing Husky..."
+  npx husky init >/dev/null 2>&1 || npx husky init
+}
+
+# --- Install new files into [local_install]/.husky (workflow step 3) ---
+sync_hooks_and_scripts() {
+  local src="$1"
+
+  mkdir -p .husky
+
+  cp -f "$src/.husky/pre-commit"       .husky/pre-commit
+  cp -f "$src/.husky/post-commit"      .husky/post-commit
+  cp -f "$src/.husky/commit-msg"       .husky/commit-msg
+  cp -f "$src/.husky/bump-version.cjs"  .husky/bump-version.cjs
+  cp -f "$src/.husky/generate-patch.sh" .husky/generate-patch.sh
+
+  chmod +x .husky/pre-commit .husky/post-commit .husky/commit-msg \
+           .husky/bump-version.cjs .husky/generate-patch.sh
+
+  log_ok "Hooks and scripts synced into .husky/"
+}
+
+ensure_prepare_script() {
+  node --input-type=commonjs <<'EOF'
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync('./package.json','utf8'));
+pkg.scripts = pkg.scripts || {};
+if (!pkg.scripts.prepare || !String(pkg.scripts.prepare).includes('husky')) {
+  pkg.scripts.prepare = 'husky';
+  fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+  console.log('prepare script updated.');
+} else {
+  console.log('prepare script already OK.');
+}
+EOF
 }
 
 run_setup() {
-    local target_dir
-    target_dir="$(cd "$1" && pwd)"   # always resolve to absolute path
+  local target_arg="$1"
+  local target_dir pkg_json start_dir
 
-    [[ -d "$target_dir" ]]           || log_error "Directory does not exist: $target_dir"
-    [[ -f "$target_dir/package.json" ]] || log_error "No package.json in $target_dir"
+  target_dir="$(cd "$target_arg" && pwd -P)"
+  [[ -d "$target_dir" ]] || log_error "Directory does not exist: $target_arg"
 
-    log_info "Processing: $target_dir"
-    cd "$target_dir"
-
-    # 1. Cleanup legacy artifacts first
-    cleanup_legacy
-
-    # 2. Install husky if missing
-    if ! grep -q '"husky"' package.json 2>/dev/null; then
-        log_info "Installing husky..."
-        npm install --save-dev husky
+  pkg_json="$(
+    if [[ -f "$target_dir/package.json" ]]; then
+      print -r -- "$target_dir/package.json"
     else
-        log_ok "Husky dependency present."
+      find_pkg_upwards "$target_dir" || true
     fi
+  )"
 
-    # 3. Initialize Husky if .husky dir is missing
-    if [[ ! -d ".husky" ]]; then
-        log_info "Initializing Husky..."
-        npx husky init
-    else
-        log_ok ".husky/ directory exists."
-    fi
+  [[ -n "$pkg_json" ]] || log_error "No package.json found from: $target_dir"
 
-    # 4. Copy and chmod all template hooks
-    log_info "Syncing hooks from template..."
-    cp "$TEMPLATE_DIR/.husky/pre-commit"  .husky/pre-commit
-    cp "$TEMPLATE_DIR/.husky/post-commit" .husky/post-commit
-    cp "$TEMPLATE_DIR/.husky/commit-msg"  .husky/commit-msg
-    chmod +x .husky/pre-commit .husky/post-commit .husky/commit-msg
-    log_ok "Hooks synced: pre-commit, post-commit, commit-msg"
+  start_dir="$(dirname "$pkg_json")"
+  cd "$start_dir" || exit 1
+  log_info "Processing: $start_dir"
 
-    # 5. Copy all scripts (generate-patch.sh + bump-version.cjs)
-    log_info "Syncing scripts..."
-    mkdir -p scripts
-    cp "$TEMPLATE_DIR/scripts/generate-patch.sh" scripts/generate-patch.sh
-    cp "$TEMPLATE_DIR/scripts/bump-version.cjs"  scripts/bump-version.cjs
-    chmod +x scripts/generate-patch.sh scripts/bump-version.cjs
-    log_ok "Scripts synced: generate-patch.sh, bump-version.cjs"
+  # 2. cleanup old installs
+  cleanup_legacy_husky_install
+  cleanup_legacy_tooling
+  install_husky_if_needed
+  init_husky
 
-    # 6. Ensure prepare script in package.json
-    log_info "Checking 'prepare' script in package.json..."
-    node --input-type=commonjs <<'EOF'
-const fs = require('fs');
-const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
-pkg.scripts = pkg.scripts || {};
-if (!pkg.scripts.prepare || !pkg.scripts.prepare.includes('husky')) {
-    pkg.scripts.prepare = 'husky';
-    fs.writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
-    process.stdout.write('Added prepare script.\n');
-} else {
-    process.stdout.write('prepare script already set.\n');
+  # 3. install new files to [local_install]/.husky
+  sync_hooks_and_scripts "$template_dir"
+  ensure_prepare_script
+
+  # 4. run ignorify to clean up .ignore file organization, ensure .husky tracked
+  [[ -x "$ignorify_script" ]] || log_error "Missing or not executable ignorify script: $ignorify_script"
+  "$ignorify_script" --dir "$start_dir" --yes
+
+  log_ok "Setup complete: $start_dir"
+  echo ""
 }
-EOF
-
-    log_ok "Setup complete: $target_dir"
-    echo ""
-}
-
-# --- Usage ---
 
 usage() {
-    print "Usage:"
-    print "  $SCRIPT_NAME --setup              Install global symlink to ~/bin"
-    print "  $SCRIPT_NAME <dir> [dir ...]      Apply husky config to target repo(s)"
-    print "  $SCRIPT_NAME .                    Apply to current directory"
-    exit 1
+  print "Usage:"
+  print "  $script_name --setup              Install global symlink to ~/bin"
+  print "  $script_name <dir> [dir ...]      Apply husky config to target repo(s)"
+  print "  $script_name .                    Apply to current directory"
+  exit 1
 }
 
-# --- Main ---
+main() {
+  [[ $# -eq 0 ]] && usage
 
-[[ $# -eq 0 ]] && usage
-
-if [[ "$1" == "--setup" ]]; then
+  if [[ "${1:-}" == "--setup" ]]; then
     check_template
     setup_symlink
     exit 0
-fi
+  fi
 
-check_template
+  check_template
 
-for dir in "$@"; do
+  # Prompt once before we call ignorify (unsafe .gitignore* create/edit/delete).
+  if [[ -t 0 ]]; then
+    print -r -n "About to create/edit/delete .gitignore* files while setting up Husky. Continue? [y/N] "
+    local ans=""
+    IFS= read -r ans || true
+    case "${ans:l}" in
+      y|yes) ;;
+      *) log_warn "Aborted."; exit 1 ;;
+    esac
+  fi
+
+  for dir in "$@"; do
     run_setup "$dir"
-done
+  done
+  log_ok "Huskified! All done."
+}
 
-log_ok "Huskified! All done."
+main "$@"

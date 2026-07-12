@@ -1,14 +1,1 @@
-#!/bin/zsh
-set -e
-
-echo "Running pre-commit checks..."
-
-if [[ -f "package.json" ]] && grep -q '"test"' package.json; then
-    npm run test 2>/dev/null || true
-fi
-
-if [[ -f "package.json" ]] && grep -q '"lint"' package.json; then
-    npm run lint 2>/dev/null || true
-fi
-
-echo "Pre-commit checks passed."
+npm test
