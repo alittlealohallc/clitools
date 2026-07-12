@@ -24,11 +24,11 @@ log_error() { print -P "%F{red}[ERROR]%f %B$1%b"; exit 1 }
 # --- Template checks ---
 check_template() {
   [[ -d "$template_dir" ]] || log_error "Template directory not found: $template_dir"
-  [[ -f "$template_dir/.husky/pre-commit"       ]] || log_error "Missing template: pre-commit"
-  [[ -f "$template_dir/.husky/post-commit"      ]] || log_error "Missing template: post-commit"
-  [[ -f "$template_dir/.husky/commit-msg"       ]] || log_error "Missing template: commit-msg"
-  [[ -f "$template_dir/.husky/bump-version.cjs" ]] || log_error "Missing template: bump-version.cjs"
-  [[ -f "$template_dir/.husky/generate-patch.sh" ]] || log_error "Missing template: generate-patch.sh"
+  [[ -f "$template_dir/.setup/pre-commit"       ]] || log_error "Missing template: pre-commit"
+  [[ -f "$template_dir/.setup/post-commit"      ]] || log_error "Missing template: post-commit"
+  [[ -f "$template_dir/.setup/commit-msg"       ]] || log_error "Missing template: commit-msg"
+  [[ -f "$template_dir/.setup/bump-version.cjs" ]] || log_error "Missing template: bump-version.cjs"
+  [[ -f "$template_dir/.setup/generate-patch.sh" ]] || log_error "Missing template: generate-patch.sh"
 }
 
 setup_symlink() {
@@ -164,11 +164,11 @@ sync_hooks_and_scripts() {
 
   mkdir -p .husky
 
-  cp -f "$src/.husky/pre-commit"       .husky/pre-commit
-  cp -f "$src/.husky/post-commit"      .husky/post-commit
-  cp -f "$src/.husky/commit-msg"       .husky/commit-msg
-  cp -f "$src/.husky/bump-version.cjs"  .husky/bump-version.cjs
-  cp -f "$src/.husky/generate-patch.sh" .husky/generate-patch.sh
+  cp -f "$src/.setup/pre-commit"       .husky/pre-commit
+  cp -f "$src/.setup/post-commit"      .husky/post-commit
+  cp -f "$src/.setup/commit-msg"       .husky/commit-msg
+  cp -f "$src/.setup/bump-version.cjs"  .husky/bump-version.cjs
+  cp -f "$src/.setup/generate-patch.sh" .husky/generate-patch.sh
 
   chmod +x .husky/pre-commit .husky/post-commit .husky/commit-msg \
            .husky/bump-version.cjs .husky/generate-patch.sh
