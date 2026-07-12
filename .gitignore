@@ -1,3 +1,5 @@
+line='*'
+norm='*'
 # Dependencies
 node_modules/
 
