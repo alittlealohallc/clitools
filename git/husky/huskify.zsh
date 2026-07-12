@@ -49,34 +49,6 @@ setup_symlink() {
   log_ok "Symlink created: $bin_link -> $target"
 }
 
-# --- Repo helpers ---
-is_stop_dir() {
-  local d="$1" repo="$2"
-  [[ "$d" == "$HOME/git/$repo" ]] && return 0
-  [[ "$d" == "$HOME/git/github/$repo" ]] && return 0
-  [[ "$d" == "$HOME/git/gitlab/$repo" ]] && return 0
-  return 1
-}
-
-find_pkg_upwards() {
-  local cur="$1"
-  local repo_dir parent
-  repo_dir="$(basename "$cur")"
-
-  while :; do
-    if [[ -f "$cur/package.json" ]]; then
-      print -r -- "$cur/package.json"
-      return 0
-    fi
-
-    is_stop_dir "$cur" "$repo_dir" && return 1
-
-    parent="$(cd "$cur/.." && pwd -P)"
-    [[ "$parent" == "$cur" ]] && return 1
-    cur="$parent"
-  done
-}
-
 # --- Cleanup (repo setup / re-setup, workflow step 2) ---
 cleanup_legacy_husky_install() {
   log_info "Removing previous Husky install..."
@@ -164,9 +136,9 @@ sync_hooks_and_scripts() {
 
   mkdir -p .husky
 
-  cp -f "$src/.setup/pre-commit"       .husky/pre-commit
-  cp -f "$src/.setup/post-commit"      .husky/post-commit
-  cp -f "$src/.setup/commit-msg"       .husky/commit-msg
+  cp -f "$src/.setup/pre-commit"        .husky/pre-commit
+  cp -f "$src/.setup/post-commit"       .husky/post-commit
+  cp -f "$src/.setup/commit-msg"        .husky/commit-msg
   cp -f "$src/.setup/bump-version.cjs"  .husky/bump-version.cjs
   cp -f "$src/.setup/generate-patch.sh" .husky/generate-patch.sh
 
@@ -193,34 +165,14 @@ EOF
 
 run_setup() {
   local target_arg="$1"
-  local target_dir pkg_json start_dir
+  local start_dir
 
-  target_dir="$(cd "$target_arg" && pwd -P)"
-  [[ -d "$target_dir" ]] || log_error "Directory does not exist: $target_arg"
+  start_dir="$(cd "$target_arg" && pwd -P)"
+  [[ -d "$start_dir" ]] || log_error "Directory does not exist: $target_arg"
+  [[ -f "$start_dir/package.json" ]] || log_error "No package.json in: $start_dir (nested/monorepo installs are not supported - pass the repo root)"
 
-  pkg_json="$(
-    if [[ -f "$target_dir/package.json" ]]; then
-      print -r -- "$target_dir/package.json"
-    else
-      find_pkg_upwards "$target_dir" || true
-    fi
-  )"
-
-  [[ -n "$pkg_json" ]] || log_error "No package.json found from: $target_dir"
-
-  start_dir="$(dirname "$pkg_json")"
   cd "$start_dir" || exit 1
   log_info "Processing: $start_dir"
-
-  # Guard: install-from (template_dir) and install-to (start_dir) must not be
-  # the same folder, or cleanup would permanently delete the template itself.
-  local template_dir_real
-  template_dir_real="$(cd "$template_dir" && pwd -P)"
-  if [[ "$start_dir" == "$template_dir_real" ]]; then
-    log_warn "Target ($start_dir) is the Husky template itself - skipping (nothing to install)."
-    echo ""
-    return 0
-  fi
 
   # 2. cleanup old installs
   cleanup_legacy_husky_install
