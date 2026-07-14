@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.6 - 2026-07-14
+
+added relink.zsh to check and fix symlinks and files in ~/bin; added reponamer.zsh to rename GitHub repos and folders both locally and on platform
+
 ## 2.1.5 - 2026-07-13
 
 working on issues with husky and sed
