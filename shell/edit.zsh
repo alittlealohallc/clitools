@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 # edit.zsh - Wrapper for /usr/local/bin/cot with file creation and setup capabilities
-# Location: ~/git/clitools/zsh/edit.zsh
+# Location: ~/git/clitools/shell/edit.zsh
 # Author: Kent Schaeffer
 
 set -o errexit
