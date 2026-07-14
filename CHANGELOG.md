@@ -1,3 +1,9 @@
+# Changelog
+
+## 2.1.5 - 2026-07-13
+
+working on issues with husky and sed
+
 # @alittlealohallc/clitools
 
 ## 2.0.0
