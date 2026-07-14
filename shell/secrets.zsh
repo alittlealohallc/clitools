@@ -3,20 +3,13 @@
 # Location: $HOME/git/clitools/shell/secrets.zsh
 # Author: Kent Schaeffer
 
-# TODOS:
-#
-# 1. research upload requirements for all platforms
-# 2. research upload CLI commands and options for GitLab, Netlify, others
-
-
 set -euo pipefail
 
-# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 platform=""
 repo=""
@@ -31,8 +24,9 @@ kc_label_prefix="Generated secret"
 script_name="$(basename "$0")"
 verbose=0
 assume_yes=0
+verify_mode=0
 
-## terminal message helper functions
+# ---------- terminal message helper functions ----------
 die() {
   local msg_type="${1:-error}"
   local msg="${2:-An error occurred}"
@@ -51,7 +45,6 @@ info() {
 }
 
 vlog() {
-  # Verbose-only logging to stderr
   if [[ $verbose -eq 1 ]]; then
     echo -e "${BLUE}[DEBUG]${NC} $*" >&2
   fi
@@ -60,21 +53,16 @@ vlog() {
 vlog_section() {
   if [[ $verbose -eq 1 ]]; then
     echo "" >&2
-    echo -e "${BLUE}[DEBUG]${NC} ─────────────────────────────────────────────────────" >&2
-    echo -e "${BLUE}[DEBUG]${NC} $*" >&2
-    echo -e "${BLUE}[DEBUG]${NC} ─────────────────────────────────────────────────────" >&2
+    echo -e "${BLUE}[DEBUG]${NC} --- $*" >&2
   fi
 }
 
-log_success(){ echo -e "${GREEN}[OK]${NC} $*"; }
-log_error()  { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-
+# ---------- usage ----------
 usage() {
   local msg_type="${1:-}"
   local msg="${2:-}"
   local header_line=""
-  
-  # Build colored header/footer based on message type
+
   case "$msg_type" in
     error)
       header_line="${RED}ERROR: ${msg}${NC}" ;;
@@ -87,36 +75,33 @@ usage() {
     "")
       header_line="" ;;
     *)
-      # Unknown type, treat as plain text
       header_line="$msg" ;;
   esac
-  
-  # Print header if we have one
+
   if [[ -n "$header_line" ]]; then
     echo ""
     echo -e "$header_line"
     echo ""
   fi
-  
+
   cat <<EOF
 ${script_name} - Secret management for Cloudflare Workers and GitHub Actions
 
 Usage: ${script_name} [OPTIONS]
 
 Setup (run once):
-  --setup                               Creates symlink in $HOME/bin to this script
+  --setup                               Creates symlink in \$HOME/bin to this script
 
-Command-line Options:
+Upload Operations:
   -p, --platform <cloudflare|github>    Platform to send keys to
   -r, --repo <[host/]owner/repo>        Platform repository name
   -w, --worker <name>                   Only for cloudflare workers
-  -k, --keys <comma,separated,names>    Secret key names to generate
+  -k, --keys <comma,separated,names>    Secret key names to generate and upload
       --show-secret <SECRET_NAME>       Display stored secret from macOS login keychain
-  -v, --verbose                         Enable detailed debug output
-  -y, --yes                             Skip confirmation prompts (auto-enabled for CSV)
+      --verify                          Verify existing secrets (don't create new ones)
 
 CSV Mode (recommended for batch operations):
-  -f, --file <secrets.csv>              Import secrets from CSV file
+  -f, --file <secrets.csv>              Import/verify secrets from CSV file
 
 CSV Format (headers NOT required; first row is data):
   platform,repo,worker,key1,key2,...
@@ -128,22 +113,27 @@ Notes:
   - key columns: secret names (any column after worker is treated as key name)
   - key secret names are converted to UPPER_SNAKE_CASE before uploading
 
+Other Options:
+  -v, --verbose                         Enable detailed debug output
+  -y, --yes                             Skip confirmation prompts
+  -h, --help                            Display this help message
+
 Examples:
   ${script_name} --setup
   ${script_name} --platform github --repo owner/repo -k API_KEY,DB_URL
   ${script_name} --platform cloudflare --worker my-worker -k CF_TOKEN
-  ${script_name} -f secrets.csv
-  ${script_name} -f secrets.csv -v        # with debug output
+  ${script_name} -f secrets.csv                          # Create/upload secrets
+  ${script_name} -f secrets.csv --verify                 # Verify what exists
+  ${script_name} --show-secret API_KEY --verify          # Verify single secret
 
 Exit Codes:
-  0  Success
-  1  Error (see stderr or usage output above)
-  
-EOF
+  0  Success (verification passed or secrets created)
+  1  Error (verification failures or creation errors)
 
+EOF
 }
 
-# Convert arbitrary name to UPPER_SNAKE_CASE
+# ---------- utility functions ----------
 to_upper_snake() {
   local s="$1"
   s="${s//-/_}"
@@ -154,7 +144,6 @@ to_upper_snake() {
 }
 
 gen_value() {
-  # base64, ~48 bytes requested by you (openssl output is base64 string)
   openssl rand -base64 48 | awk '{$1=$1};1'
 }
 
@@ -164,44 +153,7 @@ json_escape() {
 
 redact_value() { echo "********"; }
 
-# ---------- Keychain storage (login keychain) ----------
-# Stores per secret item:
-# - account: $kc_comment_extra (optional note-ish metadata)
-# - service: generated stable service name per platform/repo/account/worker
-# - label/comment: stored in "description" and "comment" where possible
-store_to_login_keychain() {
-  local p="$1" key="$2" value="$3"
-  local acct="${account:-default}"
-
-  # FIX: Use hyphens instead of colons (some macOS versions treat colons specially)
-  local svc="$kcprefix-$p-$acct-$repo-$worker"
-  local desc="platform=$p repo=$repo account=$acct worker=$worker"
-
-  vlog "Storing to keychain:"
-  vlog "  service: $svc:$key"
-  vlog "  account: $USER"
-
-  security add-generic-password \
-    -U \
-    -a "$USER" \
-    -s "$svc:$key" \
-    -w "$value" \
-    -l "$kc_label_prefix" \
-    -D "$desc" \
-    2>&1
-
-  local rc=$?
-  if [[ $rc -eq 0 ]]; then
-    log_success "Stored $key to keychain ($svc)"
-    return 0
-  else
-    log_error "Keychain storage FAILED for $key (rc=$rc)"
-    return $rc
-  fi
-}
-
 split_names_csv_list() {
-  # outputs newline-separated names (trimmed) for zsh to consume safely
   local in="$1"
   awk -F',' '
     {
@@ -211,7 +163,6 @@ split_names_csv_list() {
       }
     }' <<<"$in"
 }
-
 
 validate_secret_name() {
   local key="$1"
@@ -227,8 +178,7 @@ guardrails_common() {
     if ! validate_secret_name "$k"; then bad+=("$k"); fi
   done
   if (( ${#bad[@]} > 0 )); then
-    log_error "Invalid secret name(s): ${bad[*]}"
-    log_error "Names must be UPPER_SNAKE_CASE (letters, digits, underscores only)"
+    echo "Guardrail failure: invalid secret name(s): ${bad[*]}" >&2
     exit 1
   fi
 }
@@ -240,38 +190,38 @@ ensure_auth() {
 
   case "$p" in
     cloudflare)
-      command -v npx >/dev/null || { log_error "Missing npx"; exit 1; }
+      command -v npx >/dev/null || { echo "Missing npx" >&2; exit 1; }
       vlog "  npx found, checking wrangler whoami..."
       if ! npx wrangler whoami --json >/dev/null 2>&1; then
-        log_error "Cloudflare auth not detected."
-        log_error "Run: npx wrangler login"
+        echo "Cloudflare auth not detected."
+        echo "Run: npx wrangler login"
         exit 1
       fi
       vlog "  wrangler auth: OK"
       ;;
     github)
-      command -v gh >/dev/null || { log_error "Missing gh CLI"; exit 1; }
+      command -v gh >/dev/null || { echo "Missing gh CLI" >&2; exit 1; }
       vlog "  gh found, checking auth status..."
       if ! gh auth status >/dev/null 2>&1; then
-        log_error "GitHub auth not detected."
-        log_error "Run: gh auth login"
+        echo "GitHub auth not detected."
+        echo "Run: gh auth login"
         exit 1
       fi
       vlog "  gh auth: OK"
       ;;
     gitlab)
-      command -v glab >/dev/null || { log_error "Missing glab CLI"; exit 1; }
+      command -v glab >/dev/null || { echo "Missing glab CLI" >&2; exit 1; }
       if ! glab auth status >/dev/null 2>&1; then
-        log_error "GitLab auth not detected."
-        log_error "Run: glab auth login"
+        echo "GitLab auth not detected."
+        echo "Run: glab auth login"
         exit 1
       fi
       ;;
     netlify)
-      command -v netlify >/dev/null || { log_error "Missing netlify CLI"; exit 1; }
+      command -v netlify >/dev/null || { echo "Missing netlify CLI" >&2; exit 1; }
       if ! netlify status >/dev/null 2>&1; then
-        log_error "Netlify auth not detected."
-        log_error "Run: netlify login"
+        echo "Netlify auth not detected."
+        echo "Run: netlify login"
         exit 1
       fi
       ;;
@@ -291,23 +241,20 @@ run_cmd_capture_err() {
   return $rc
 }
 
-# ---------- Confirmation helper ----------
 confirm() {
   local prompt="$1"
 
-  # If --yes flag set or CSV mode, auto-confirm
   if [[ $assume_yes -eq 1 ]]; then
     vlog "Auto-confirming: $prompt"
     return 0
   fi
 
-  # Read from /dev/tty to avoid consuming CSV stdin
   printf "%s [y/N]: " "$prompt"
   local ans
   if [[ -r /dev/tty ]]; then
     read -r ans < /dev/tty
   else
-    log_warn "No tty available, auto-confirming"
+    echo "WARNING: No tty available, auto-confirming" >&2
     return 0
   fi
 
@@ -317,11 +264,47 @@ confirm() {
   esac
 }
 
+# ---------- keychain storage ----------
+store_to_login_keychain() {
+  local p="$1" key="$2" value="$3"
+  local acct="${account:-default}"
+
+  local svc="$kcprefix:$p:$acct:$repo:$worker"
+  local desc="platform=$p repo=$repo account=$acct worker=$worker"
+
+  vlog "Storing to keychain:"
+  vlog "  service: $svc:$key"
+  vlog "  account: $USER"
+
+  local sec_output
+  local sec_rc
+  set +e
+  sec_output=$(security add-generic-password \
+    -U \
+    -a "$USER" \
+    -s "$svc:$key" \
+    -w "$value" \
+    -l "$kc_label_prefix" \
+    -D "$desc" \
+    2>&1)
+  sec_rc=$?
+  set -e
+
+  vlog "  security rc: $sec_rc"
+
+  if [[ $sec_rc -eq 0 ]]; then
+    echo -e "${GREEN}[OK]${NC} Stored $key to keychain ($svc)"
+    return 0
+  else
+    echo -e "${RED}[FAIL]${NC} Keychain storage FAILED for $key (rc=$sec_rc): ${sec_output:0:100}" >&2
+    return $sec_rc
+  fi
+}
+
 show_from_login_keychain() {
   local p="$1" key="$2" svc
   local acct="${account:-default}"
-  
-  # svc must match store_to_login_keychain()
+
   svc="$kcprefix:$p:$acct:$repo:$worker"
 
   vlog "Looking up keychain entry:"
@@ -334,6 +317,7 @@ show_from_login_keychain() {
     -w
 }
 
+# ---------- display ----------
 print_table() {
   local p="$1" repo_display="$2"
   if [[ -n "$repo_display" ]]; then
@@ -366,9 +350,128 @@ build_json_map() {
   echo "$json"
 }
 
-# ---------- GitHub adapter ----------
+# ---------- verification functions ----------
+verify_cloudflare_secret() {
+  local worker="$1"
+  local secret_name="$2"
+
+  vlog "  Verifying Cloudflare secret: $secret_name on worker $worker"
+
+  local secret_list
+  set +e
+  secret_list=$(npx wrangler secret list --name "$worker" 2>&1)
+  local rc=$?
+  set -e
+
+  if [[ $rc -ne 0 ]]; then
+    echo "[FAIL] Cloudflare API call failed (rc=$rc)" >&2
+    return 1
+  fi
+
+  if echo "$secret_list" | grep -q "\"name\": \"$secret_name\""; then
+    vlog "  OK: Secret $secret_name found on Cloudflare"
+    echo "[OK] Cloudflare: $secret_name present"
+    return 0
+  else
+    vlog "  MISSING: Secret $secret_name NOT FOUND on Cloudflare"
+    echo "[MISSING] Cloudflare: $secret_name not found" >&2
+    return 1
+  fi
+}
+
+verify_github_secret() {
+  local repo="$1"
+  local secret_name="$2"
+
+  vlog "  Verifying GitHub secret: $secret_name"
+
+  local secret_list
+  set +e
+  if [[ -n "$repo" ]]; then
+    secret_list=$(gh secret list -R "$repo" 2>&1)
+  else
+    secret_list=$(gh secret list 2>&1)
+  fi
+  local rc=$?
+  set -e
+
+  if [[ $rc -ne 0 ]]; then
+    echo "[FAIL] GitHub API call failed (rc=$rc)" >&2
+    return 1
+  fi
+
+  if echo "$secret_list" | grep -q "^$secret_name "; then
+    vlog "  OK: Secret $secret_name found on GitHub"
+    echo "[OK] GitHub: $secret_name present"
+    return 0
+  else
+    vlog "  MISSING: Secret $secret_name NOT FOUND on GitHub"
+    echo "[MISSING] GitHub: $secret_name not found" >&2
+    return 1
+  fi
+}
+
+verify_keychain_secret() {
+  local platform="$1"
+  local secret_name="$2"
+
+  local svc="$kcprefix:$platform:${account:-default}:$repo:$worker"
+
+  vlog "  Verifying keychain secret: $secret_name (service: $svc)"
+
+  local value
+  set +e
+  value=$(security find-generic-password -a "$USER" -s "$svc:$secret_name" -w 2>&1)
+  local rc=$?
+  set -e
+
+  if [[ $rc -eq 0 ]] && [[ -n "$value" ]]; then
+    vlog "  OK: Secret $secret_name found in keychain"
+    echo "[OK] Keychain: $secret_name present"
+    return 0
+  else
+    vlog "  MISSING: Secret $secret_name NOT FOUND in keychain"
+    echo "[MISSING] Keychain: $secret_name not found" >&2
+    return 1
+  fi
+}
+
+verify_single_secret() {
+  local platform="$1"
+  local secret_name="$2"
+
+  local platform_ok=0
+  local keychain_ok=0
+
+  case "$platform" in
+    cloudflare)
+      verify_cloudflare_secret "$worker" "$secret_name" >/dev/null 2>&1 && platform_ok=1
+      ;;
+    github)
+      verify_github_secret "$repo" "$secret_name" >/dev/null 2>&1 && platform_ok=1
+      ;;
+    *)
+      echo "[FAIL] Unsupported platform: $platform" >&2
+      return 1
+      ;;
+  esac
+
+  verify_keychain_secret "$platform" "$secret_name" >/dev/null 2>&1 && keychain_ok=1
+
+  if [[ "$platform_ok" -eq 1 ]] && [[ "$keychain_ok" -eq 1 ]]; then
+    echo "[OK] $secret_name: Platform + Keychain verified"
+    return 0
+  elif [[ "$platform_ok" -eq 1 ]]; then
+    echo "[PARTIAL] $secret_name: Platform OK, Keychain missing"
+    return 1
+  else
+    echo "[FAIL] $secret_name: Platform missing, Keychain $([ $keychain_ok -eq 1 ] && echo 'OK' || echo 'missing')"
+    return 1
+  fi
+}
+
+# ---------- upload adapters ----------
 upload_github() {
-  # Uses explicit --repo if provided; else uses cwd-derived default (gh can infer).
   local repo_display=""
   if [[ -n "$repo" ]]; then
     repo_display="$repo"
@@ -376,28 +479,26 @@ upload_github() {
     repo_display="(cwd default)"
   fi
 
-  # Confirmation table
   print_table "github" "$repo_display"
 
   if ! confirm "Proceed with upload to GitHub repository $repo_display?"; then
     return 1
   fi
 
-  # Upload per secret
   local k v rc=0
   for k in "${(@)names}"; do
     v="${values[$k]}"
     vlog "Setting GitHub secret: $k"
     if [[ -n "$repo" ]]; then
       if ! gh secret set "$k" --body "$v" -R "$repo" >/dev/null 2>&1; then
-        log_error "Failed to set GitHub secret: $k"
+        echo "[FAIL] Failed to set GitHub secret: $k" >&2
         rc=1
       else
         vlog "  GitHub secret $k: OK"
       fi
     else
       if ! gh secret set "$k" --body "$v" >/dev/null 2>&1; then
-        log_error "Failed to set GitHub secret: $k"
+        echo "[FAIL] Failed to set GitHub secret: $k" >&2
         rc=1
       else
         vlog "  GitHub secret $k: OK"
@@ -417,43 +518,42 @@ upload_cloudflare() {
   local k v rc=0
   for k in "${(@)names}"; do
     v="${values[$k]}"
-    
+
     vlog "Setting Cloudflare secret: $k"
     vlog "  value length: ${#v} chars"
-    
-    # FIX: Use individual secret put commands instead of bulk
+
     set +e
     local output
     output=$(echo "$v" | npx wrangler secret put "$k" --name "$worker" 2>&1)
     local exit_code=$?
     set -e
-    
+
     vlog "  wrangler output: $output"
     vlog "  exit code: $exit_code"
 
     if [[ $exit_code -ne 0 ]]; then
-      log_error "Failed to set secret $k:"
+      echo "[FAIL] Failed to set secret $k:" >&2
       echo "$output" >&2
       rc=1
     else
       vlog "  Secret $k: OK"
     fi
   done
-  
+
   if [[ $rc -eq 0 ]]; then
-    log_success "Uploaded ${#names[@]} secrets to worker $worker"
+    echo "[OK] Uploaded ${#names[@]} secrets to worker $worker"
   fi
-  
+
   return $rc
 }
 
 upload_gitlab() {
-  echo "TODO: implement GitLab variable creation for your target (CLI/API adapter missing)." >&2
+  echo "[TODO] implement GitLab variable creation" >&2
   return 2
 }
 
 upload_netlify() {
-  echo "TODO: implement Netlify env var/secret creation for your target (CLI adapter missing)." >&2
+  echo "[TODO] implement Netlify env var/secret creation" >&2
   return 2
 }
 
@@ -467,11 +567,11 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --setup) 
+    --setup)
       setup_flag=1
       shift
       ;;
-    --platform|-p) 
+    --platform|-p)
       platform="${2:-}"
       if [[ -z "$platform" ]] && [[ -z "${2:-}" ]]; then
         usage "error" "Missing value for --platform/-p"
@@ -479,7 +579,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    --repo|-r) 
+    --repo|-r)
       repo="${2:-}"
       if [[ -z "$repo" ]] && [[ -z "${2:-}" ]]; then
         usage "error" "Missing value for --repo/-r"
@@ -487,7 +587,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    --worker|-w) 
+    --worker|-w)
       worker="${2:-}"
       if [[ -z "$worker" ]] && [[ -z "${2:-}" ]]; then
         usage "error" "Missing value for --worker/-w"
@@ -495,7 +595,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    --keys|-k) 
+    --keys|-k)
       secrets_arg="${2:-}"
       if [[ -z "$secrets_arg" ]] && [[ -z "${2:-}" ]]; then
         usage "error" "Missing value for --keys/-k"
@@ -503,7 +603,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    --file|-f) 
+    --file|-f)
       secrets_csv="${2:-}"
       if [[ -z "$secrets_csv" ]] && [[ -z "${2:-}" ]]; then
         usage "error" "Missing value for --file/-f"
@@ -511,7 +611,7 @@ while [[ $# -gt 0 ]]; do
       fi
       shift 2
       ;;
-    --show-secret) 
+    --show-secret)
       show_secret="${2:-}"
       if [[ -z "$show_secret" ]] && [[ -z "${2:-}" ]]; then
         usage "error" "Missing value for --show-secret"
@@ -527,11 +627,15 @@ while [[ $# -gt 0 ]]; do
       assume_yes=1
       shift
       ;;
-    -h|--help) 
+    --verify)
+      verify_mode=1
+      shift
+      ;;
+    -h|--help)
       usage "info" "Usage info requested"
       exit 0
       ;;
-    *) 
+    *)
       usage "error" "Unknown argument: $1"
       exit 1
       ;;
@@ -541,9 +645,10 @@ done
 platform="$(printf '%s' "$platform" | tr '[:upper:]' '[:lower:]')"
 account="${account:-default}"
 
+# ---------- --show-secret mode ----------
 if [[ -n "$show_secret" ]]; then
-  # Apply your requested fixes for --show-secret block
-  
+  vlog_section "Show Secret Mode"
+
   account="${account:-default}"
 
   case "$platform" in
@@ -556,8 +661,6 @@ if [[ -n "$show_secret" ]]; then
   show_secret="$(to_upper_snake "$show_secret")"
   validate_secret_name "$show_secret" || { echo "Invalid secret name: $show_secret" >&2; exit 1; }
 
-  # BOTH repo AND worker may be required depending on storage context
-  # Since we store with BOTH fields, require BOTH on lookup for consistency
   [[ -n "$worker" ]] || { echo "Missing --worker for keychain lookup" >&2; exit 1; }
   [[ -n "$repo" ]] || { echo "Missing --repo for keychain lookup" >&2; exit 1; }
 
@@ -567,52 +670,53 @@ if [[ -n "$show_secret" ]]; then
   vlog "Repo:    $repo"
   vlog "Worker:  $worker"
 
+  if [[ $verify_mode -eq 1 ]]; then
+    verify_single_secret "$platform" "$show_secret"
+    exit $?
+  fi
+
   security_value="$(show_from_login_keychain "$platform" "$show_secret")"
   printf '%s\n' "$security_value"
   exit 0
 fi
 
-# Handle --setup flag
+# ---------- --setup flag ----------
 if [[ -n "$setup_flag" ]]; then
-    # Ensure the bin directory exists
-    mkdir -p "$HOME/bin"
-    
-    # FIX: Remove `local` keyword (outside function), expand `~` properly
-    symlink_target="$HOME/bin/secrets"
-    script_target="$HOME/git/clitools/shell/secrets.zsh"
-    
-    # Remove existing symlink if it points elsewhere or is broken
-    if [[ -L "$symlink_target" ]]; then
-        rm "$symlink_target"
-    elif [[ -e "$symlink_target" ]]; then
-        echo "Error: $symlink_target exists but is not a symlink. Aborting setup." >&2
-        exit 1
-    fi
-    
-    # Create the symlink
-    ln -sf "$script_target" "$symlink_target"
-    echo "Symlink created: $symlink_target -> $script_target"
-    echo "Ensure $HOME/bin is in your \$PATH. Add 'export PATH=\$HOME/bin:\$PATH' to ~/.zshrc if needed."
-    exit 0
+  vlog "Setup mode requested"
+
+  mkdir -p "$HOME/bin"
+
+  symlink_target="$HOME/bin/secrets"
+  script_target="$HOME/git/clitools/shell/secrets.zsh"
+
+  if [[ -L "$symlink_target" ]]; then
+    rm "$symlink_target"
+  elif [[ -e "$symlink_target" ]]; then
+    echo "Error: $symlink_target exists but is not a symlink. Aborting setup." >&2
+    exit 1
+  fi
+
+  ln -sf "$script_target" "$symlink_target"
+  echo "Symlink created: $symlink_target -> $script_target"
+  echo "Ensure $HOME/bin is in your \$PATH. Add 'export PATH=\$HOME/bin:\$PATH' to ~/.zshrc if needed."
+  exit 0
 fi
 
-# Errors collector - initialize early
+# Errors collector
 typeset -a err_lines=()
 
 # ---------- CSV mode ----------
 if [[ -n "$secrets_csv" ]]; then
   vlog_section "CSV Mode"
   vlog "CSV file: $secrets_csv"
+  vlog "Verify mode: $([ $verify_mode -eq 1 ] && echo 'enabled' || echo 'disabled')"
 
   [[ -f "$secrets_csv" ]] || { echo "CSV not found: $secrets_csv" >&2; exit 1; }
 
-  # FIX: Auto-enable --yes for CSV mode to avoid stdin conflicts
-  assume_yes=1
-  vlog "Auto-enabled --yes for CSV mode"
+  # FIX: Removed assume_yes=1 auto-enable; confirm() reads from /dev/tty
+  # so it will not consume stdin from the CSV loop
+  vlog "Confirmation prompts will read from /dev/tty"
 
-  # CSV rows are data rows: platform,repo,worker,key1,key2,...
-  # If a row has no key names, it's skipped.
-  # We upload each row separately.
   repo_cli="$repo"
   worker_cli="$worker"
 
@@ -620,34 +724,29 @@ if [[ -n "$secrets_csv" ]]; then
   row_failed=0
   total_uploaded=0
   total_failed=0
+  total_verified=0
+  total_missing=0
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     local_line_idx=$((local_line_idx+1))
-    # Skip blank lines
     [[ "$line" =~ ^[[:space:]]*$ ]] && continue
 
     vlog "Processing CSV row $local_line_idx: $(echo "$line" | sed -E 's/[^,]+/{redacted}/g')"
 
-    # Naive CSV split by comma (assumes no quoted commas in fields).
-    # If you need full RFC4180 parsing, tell me and I'll adjust.
     IFS=',' read -r p row_repo row_worker rest <<<"$line" || true
-
     p="$(printf '%s' "$p" | tr '[:upper:]' '[:lower:]')"
 
-    # Split the remainder into secret names (from columns 4 onward).
-    # We re-split using awk to keep commas across "rest".
-    # Build an array by taking fields 4..NF from CSV row.
     names=()
     while IFS= read -r name; do
-        [[ -n "$name" ]] && names+=("$name")
+      [[ -n "$name" ]] && names+=("$name")
     done < <(
-        awk -F',' '
-        {
-            for (i=4;i<=NF;i++){
-                gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i);
-                if($i!="") print $i;
-            }
-        }' <<<"$line"
+      awk -F',' '
+      {
+        for (i=4;i<=NF;i++){
+          gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i);
+          if($i!="") print $i;
+        }
+      }' <<<"$line"
     )
 
     if (( ${#names[@]} == 0 )); then
@@ -671,27 +770,25 @@ if [[ -n "$secrets_csv" ]]; then
 
     guardrails_common "${names[@]}"
 
-    # FIX: Save and restore worker/repo to prevent cross-row contamination
+    # Save and restore worker/repo to prevent cross-row contamination
     saved_worker="$worker"
     saved_repo="$repo"
-    
+
     if [[ -n "$row_repo" ]]; then
-        repo="$row_repo"
+      repo="$row_repo"
     else
-        repo="$repo_cli"
+      repo="$repo_cli"
     fi
 
     if [[ -n "$row_worker" ]]; then
-        worker="$row_worker"
+      worker="$row_worker"
     else
-        worker="$worker_cli"
+      worker="$worker_cli"
     fi
 
-    # Determine repo: row repo if present, else CLI --repo if set (else empty => gh cwd default)
     if [[ -n "$row_repo" ]]; then
       repo="$row_repo"
     fi
-    # Determine worker: row worker if present, else CLI --worker if set (only for cloudflare)
     if [[ -n "$row_worker" ]]; then
       worker="$row_worker"
     fi
@@ -699,22 +796,47 @@ if [[ -n "$secrets_csv" ]]; then
     if [[ "$p" == "cloudflare" && -z "$worker" ]]; then
       echo "CSV row $local_line_idx: missing worker for cloudflare" >&2
       row_failed=1
-      total_failed=$((total_failed + 1))
+      total_missing=$((total_missing + ${#names[@]}))
       worker="$saved_worker"
       repo="$saved_repo"
       continue
     fi
 
-    # Platform auth + upload
     platform="$p"
 
-    # FIX: Capture all variables needed for keychain storage BEFORE any upload/modifications
-    # This ensures consistency between upload context and keychain storage context
+    # ---------- VERIFY MODE ----------
+    if [[ $verify_mode -eq 1 ]]; then
+      vlog "  Verifying row $local_line_idx secrets..."
+      row_passed=0
+      row_total=${#names[@]}
+
+      for k in "${(@)names}"; do
+        if verify_single_secret "$p" "$k"; then
+          row_passed=$((row_passed + 1))
+          total_verified=$((total_verified + 1))
+        else
+          total_missing=$((total_missing + 1))
+        fi
+      done
+
+      if [[ $row_passed -eq $row_total ]]; then
+        echo "[OK] Row $local_line_idx: All $row_total secrets verified"
+      else
+        echo "[PARTIAL] Row $local_line_idx: $row_passed/$row_total secrets present" >&2
+      fi
+
+      worker="$saved_worker"
+      repo="$saved_repo"
+      continue
+    fi
+
+    # ---------- CREATE MODE ----------
+    # Capture keychain context before upload
     local keychain_platform="$p"
     local keychain_repo="$repo"
     local keychain_worker="$worker"
     local keychain_account="${account:-default}"
-    
+
     vlog "  Keychain storage context:"
     vlog "    platform=$keychain_platform repo=$keychain_repo worker=$keychain_worker account=$keychain_account"
 
@@ -731,8 +853,8 @@ if [[ -n "$secrets_csv" ]]; then
 
     case "$platform" in
       cloudflare)
-        if ! upload_cloudflare; then
-          err_lines+=("cloudflare::bulk :: upload failed")
+        if ! run_cmd_capture_err "cloudflare::bulk" upload_cloudflare; then
+          row_failed=1
         fi
         ;;
       github)
@@ -753,31 +875,31 @@ if [[ -n "$secrets_csv" ]]; then
       *)
         echo "CSV row $local_line_idx: unsupported platform '$platform'" >&2
         row_failed=1
+        worker="$saved_worker"
+        repo="$saved_repo"
         continue
         ;;
     esac
 
     # Store to keychain only on successful upload
     if [[ $row_failed -eq 0 ]]; then
-      vlog "  Storing to keychain with captured vars..."
-      
-      # FIX: Temporarily override globals with captured values for this row
+      # Override globals with captured values for storage consistency
       local old_account="$account" old_repo="$repo" old_worker="$worker"
       account="$keychain_account"
       repo="$keychain_repo"
       worker="$keychain_worker"
-      
+
       for k in "${(@)names}"; do
         store_to_login_keychain "$keychain_platform" "$k" "${values[$k]}"
       done
-      
-      # Restore original values
+
+      # Restore
       account="$old_account"
       repo="$old_repo"
       worker="$old_worker"
-      
+
       total_uploaded=$((total_uploaded + ${#names[@]}))
-      log_success "Row $local_line_idx: uploaded ${#names[@]} secrets to $platform"
+      echo -e "${GREEN}[OK]${NC} Row $local_line_idx: uploaded ${#names[@]} secrets to $platform"
     else
       total_failed=$((total_failed + ${#names[@]}))
       echo -e "${RED}Row $local_line_idx: upload failed, secrets NOT stored in keychain${NC}"
@@ -791,30 +913,44 @@ if [[ -n "$secrets_csv" ]]; then
 
   vlog_section "CSV Mode Summary"
   vlog "Total rows processed: $local_line_idx"
+
+  if [[ $verify_mode -eq 1 ]]; then
+    echo ""
+    echo "VERIFICATION SUMMARY"
+    echo "  Secrets verified:  $total_verified"
+    echo "  Secrets missing:   $total_missing"
+
+    if [[ $total_missing -eq 0 ]]; then
+      echo -e "${GREEN}[OK] ALL SECRETS VERIFIED SUCCESSFULLY${NC}"
+      exit 0
+    else
+      echo -e "${RED}[FAIL] VERIFICATION COMPLETE: $total_missing secret(s) missing${NC}" >&2
+      exit 1
+    fi
+  fi
+
   vlog "Total secrets uploaded: $total_uploaded"
   vlog "Total secrets failed:  $total_failed"
 
-  # Print errors at the end
   if (( ${#err_lines[@]} > 0 )); then
     echo ""
-    log_error "Upload errors encountered:"
+    echo -e "${RED}UPLOAD ERRORS:${NC}"
     for e in "${(@)err_lines}"; do
-      echo -e "  ${RED}- $e${NC}"
+      echo "- $e"
     done
     exit 1
   fi
 
-  log_success "Upload complete. $total_uploaded secrets uploaded across $local_line_idx rows."
+  echo -e "${GREEN}[OK]${NC} Upload complete. $total_uploaded secrets uploaded across $local_line_idx rows."
   exit 0
 fi
 
 # ---------- non-CSV mode ----------
-[[ -z "$platform" ]] &&  die "error" "Missing value for --platform/-p"
+[[ -z "$platform" ]] && die "error" "Missing value for --platform/-p"
 
-# FIX: Added platform validation that was missing
 case "$platform" in
   cloudflare|github|gitlab|netlify) ;;
-  *) echo "Unsupported platform: $platform" >&2; exit 1 ;;
+  *) die "error" "Unsupported platform: $platform" ;;
 esac
 
 [[ -z "${secrets_arg}" ]] && die "error" "Missing value for --keys/-k"
@@ -845,13 +981,50 @@ fi
 
 guardrails_common "${names[@]}"
 
+vlog "Parsed secret names: ${names[*]}"
+
+# ---------- VERIFY MODE (non-CSV) ----------
+if [[ $verify_mode -eq 1 ]]; then
+  vlog_section "Verify Mode"
+  vlog "Platform: $platform"
+  vlog "Names: ${names[*]}"
+
+  ensure_auth "$platform"
+
+  verify_passed=0
+  verify_failed=0
+
+  for k in "${(@)names}"; do
+    if verify_single_secret "$platform" "$k"; then
+      verify_passed=$((verify_passed + 1))
+    else
+      verify_failed=$((verify_failed + 1))
+    fi
+  done
+
+  echo ""
+  echo "VERIFICATION SUMMARY"
+  echo "  Secrets verified:  $verify_passed"
+  echo "  Secrets missing:   $verify_failed"
+
+  if [[ $verify_failed -eq 0 ]]; then
+    echo -e "${GREEN}[OK] ALL SECRETS VERIFIED SUCCESSFULLY${NC}"
+    exit 0
+  else
+    echo -e "${RED}[FAIL] VERIFICATION COMPLETE: $verify_failed secret(s) missing${NC}" >&2
+    exit 1
+  fi
+fi
+
+# ---------- CREATE MODE (non-CSV) ----------
 # Generate values
 typeset -A values
 for k in "${(@)names}"; do
   values[$k]="$(gen_value)"
 done
 
-# Auth + upload
+vlog "Generated ${#names[@]} secret values"
+
 ensure_auth "$platform"
 
 upload_ok=0
@@ -888,11 +1061,11 @@ fi
 
 if (( ${#err_lines[@]} > 0 )); then
   echo ""
-  log_error "Upload errors encountered:"
+  echo -e "${RED}UPLOAD ERRORS:${NC}"
   for e in "${(@)err_lines}"; do
-    echo -e "  ${RED}- $e${NC}"
+    echo "- $e"
   done
   exit 1
 fi
 
-log_success "Upload complete. ${#names[@]} secrets uploaded to $platform."
+echo -e "${GREEN}[OK]${NC} Upload complete. ${#names[@]} secrets uploaded to $platform."
