@@ -1,0 +1,50 @@
+{
+  "prefaceIds": ["client", "tools", "template", "apps", "study", "docs"],
+  "segments": {
+    "prefaceId": {
+      "minLen": 4,
+      "maxLen": 8,
+      "pattern": "^[a-z]+$",
+      "description": "Fixed enum value"
+    },
+    "clientId": {
+      "minLen": 3,
+      "maxLen": 20,
+      "pattern": "^[a-z0-9]+$",
+      "description": "Client or organization identifier"
+    },
+    "appId": {
+      "minLen": 5,
+      "maxLen": 20,
+      "pattern": "^[a-z0-9]+$",
+      "description": "Application identifier"
+    },
+    "projectId": {
+      "minLen": 3,
+      "maxLen": 20,
+      "pattern": "^[a-z0-9v]+$",
+      "description": "Optional fourth segment (version or project variant)"
+    }
+  },
+  "totalMaxLen": 100,
+  "defaultOrg": "aloha",
+  "baseDirs": [
+    "~/git",
+    "~/git/github",
+    "~/git/gitlab"
+  ],
+  "notes": {
+    "segments": "Must contain 3 segments (prefaceId-clientId-appId) or 4 segments (add projectId)",
+    "maxSegments": 4,
+    "validationRules": [
+      "Remove all special characters including hyphens from input",
+      "Convert to lowercase",
+      "Validate against pattern for each segment",
+      "Reconstruct with single hyphens between segments",
+      "Check total length <= 100 chars",
+      "Check for collisions (case-insensitive)"
+    ],
+    "collisionHandling": "Reject if lowercase(new_name) exists in index (any case)",
+    "caseHandling": "Lowercase wins; warn user if name exists in different case"
+  }
+}
